@@ -23,7 +23,7 @@ export interface InkContextValue {
   loading: boolean;
   graph: { nodes: GraphNode[]; links: GraphLink[] };
   /** 编译或 lint：lintOnly=true 时仅做语法检查 */
-  compileInk: (source: string, lintOnly?: boolean) => Promise<void>;
+  compileInk: (source: string, lintOnly?: boolean, sourceFilePath?: string) => Promise<void>;
   /** 语法检测，将错误转为 Marker 列表 */
   lintInk: (source: string) => Promise<Marker[]>;
 }
@@ -39,10 +39,10 @@ export const InkProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
   /**
    * 调用主进程 API 编译 Ink，更新 parsed 和 graph
    */
-  const compileInk = async (source: string, lintOnly = false) => {
+  const compileInk = async (source: string, lintOnly = false, sourceFilePath?: string) => {
     setLoading(true);
     try {
-      const result = await (window as any).inkAPI.compileInk(source, lintOnly);
+      const result = await (window as any).inkAPI.compileInk(source, lintOnly, sourceFilePath);
       if (!lintOnly) {
         setParsed(result);
         setGraph(buildStoryGraph(result));
@@ -70,13 +70,15 @@ export const InkProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
       while ((match = regex.exec(errStr))) {
         const line = Number(match[1]);
         const message = match[2].trim();
+        // 区分警告和错误
+        const isWarning = message.toLowerCase().includes('warning') || message.includes('WARNING');
         markers.push({
           startLineNumber: line,
           startColumn: 1,
           endLineNumber: line,
           endColumn: Number.MAX_SAFE_INTEGER,
           message,
-          severity: 8 // monaco.MarkerSeverity.Error
+          severity: isWarning ? 4 : 8 // monaco.MarkerSeverity.Warning : Error
         });
       }
       return markers;

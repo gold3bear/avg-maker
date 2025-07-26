@@ -1,7 +1,7 @@
 // electron/main.ts
 
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
-import { dirname, join } from 'path';
+import { dirname, join, basename } from 'path';
 import { spawn, spawnSync } from 'child_process';
 import fs from 'fs';
 import fsExtra from 'fs-extra';
@@ -28,7 +28,7 @@ function createWindow() {
 
   if (app.isPackaged) {
     // 生产环境加载打包后的静态文件
-    mainWindow.loadFile(join(__dirname, '../public/index.html'));
+    mainWindow.loadFile(join(__dirname, '../../public/index.html'));
   } else {
     // 开发环境加载 Vite dev server
     mainWindow.loadURL('http://localhost:5173');
@@ -68,6 +68,10 @@ ipcMain.handle('open-project', async () => {
 
 // 读取指定文件内容
 ipcMain.handle('read-file', (_, filePath: string) => {
+  const stat = fs.statSync(filePath);
+  if (stat.isDirectory()) {
+    throw new Error(`Cannot read directory as file: ${filePath}`);
+  }
   return fs.readFileSync(filePath, 'utf-8');
 });
 
@@ -87,24 +91,69 @@ ipcMain.handle('watch-files', (_, paths: string[]) => {
 });
 
 // 编译或 lint Ink 源码
-ipcMain.handle('compile-ink', async (_, inkText: string, lintOnly: boolean) => {
-  // 确定工作目录（story 目录）
-  const storyDir = app.isPackaged
-    ? join(process.resourcesPath, 'story')
-    : join(__dirname, '../story');
-  const tempInkPath = join(storyDir, 'temp.ink');
-  fs.writeFileSync(tempInkPath, inkText, 'utf-8');
+ipcMain.handle('compile-ink', async (_, inkText: string, lintOnly: boolean, sourceFilePath?: string) => {
+  let workingDir: string;
+  let inkFileName: string;
+  let cleanupTempFile = false;
+  
+  if (sourceFilePath) {
+    // 如果提供了源文件路径，在原目录中编译以支持INCLUDE语法
+    workingDir = dirname(sourceFilePath);
+    inkFileName = basename(sourceFilePath);
+    
+    // 将当前内容写入原文件（临时保存，编译后不影响实际文件）
+    const originalContent = fs.existsSync(sourceFilePath) ? fs.readFileSync(sourceFilePath, 'utf-8') : '';
+    fs.writeFileSync(sourceFilePath, inkText, 'utf-8');
+    cleanupTempFile = true;
+    
+    // 恢复原文件内容的清理函数
+    var restoreOriginal = () => {
+      if (cleanupTempFile && originalContent !== inkText) {
+        fs.writeFileSync(sourceFilePath, originalContent, 'utf-8');
+      }
+    };
+  } else {
+    // 使用系统临时目录（向后兼容）
+    const os = await import('os');
+    workingDir = join(os.tmpdir(), 'ink-editor-compilation');
+    
+    // Ensure temp directory exists
+    if (!fs.existsSync(workingDir)) {
+      fs.mkdirSync(workingDir, { recursive: true });
+    }
+    
+    inkFileName = 'temp.ink';
+    const tempInkPath = join(workingDir, inkFileName);
+    fs.writeFileSync(tempInkPath, inkText, 'utf-8');
+  }
 
   const inklecatePath = app.isPackaged
     ? join(process.resourcesPath, 'bin/inklecate')
-    : join(__dirname, '../bin/inklecate');
+    : join(__dirname, '../../bin/inklecate');
 
   return new Promise((resolve, reject) => {
-    const args = ['--export', 'json', 'temp.ink'];
-    // 如果只做 lint，可以省略 --export，或者同样导出再忽略结果
-    const proc = spawn(inklecatePath, args, { cwd: storyDir });
+    const outputJsonName = inkFileName.replace('.ink', '.json');
+    const outputJsonPath = join(workingDir, outputJsonName);
+    const args = ['-o', outputJsonName, inkFileName];
+    console.log('Main: Starting inklecate with args:', args, 'in dir:', workingDir);
+    
+    // 添加超时机制
+    const timeout = setTimeout(() => {
+      console.log('Main: Inklecate compilation timeout');
+      proc.kill('SIGTERM');
+      reject(new Error('编译超时（30秒）'));
+    }, 30000);
+    
+    const proc = spawn(inklecatePath, args, { cwd: workingDir });
     let stdout = '';
     let stderr = '';
+
+    proc.on('error', (error) => {
+      clearTimeout(timeout);
+      console.log('Main: Inklecate process error:', error);
+      console.error('Main: Inklecate process error:', error);
+      reject(new Error(`启动inklecate失败: ${error.message}`));
+    });
 
     proc.stdout.on('data', chunk => {
       stdout += chunk.toString();
@@ -113,14 +162,63 @@ ipcMain.handle('compile-ink', async (_, inkText: string, lintOnly: boolean) => {
       stderr += chunk.toString();
     });
     proc.on('close', code => {
-      if (code !== 0) {
-        return reject(stderr);
-      }
-      try {
-        const json = JSON.parse(stdout);
-        resolve(json);
-      } catch (e) {
-        reject(e);
+      clearTimeout(timeout);
+      console.log('Main: Inklecate finished with code:', code);
+      console.log('Main: stdout:', stdout);
+      console.log('Main: stderr:', stderr);
+      
+      // 清理函数
+      const cleanup = () => {
+        clearTimeout(timeout);
+        if (sourceFilePath && typeof restoreOriginal === 'function') {
+          restoreOriginal();
+        }
+        // 清理生成的JSON文件（如果在原目录中）
+        if (sourceFilePath && fs.existsSync(outputJsonPath)) {
+          try {
+            fs.unlinkSync(outputJsonPath);
+          } catch (e) {
+            console.log('Main: Could not clean up output JSON file:', e);
+          }
+        }
+      };
+
+      if (code === 0) {
+        // 编译成功，检查是否生成了JSON文件
+        try {
+          if (fs.existsSync(outputJsonPath)) {
+            // 读取生成的JSON文件
+            const jsonContent = fs.readFileSync(outputJsonPath, 'utf-8');
+            const storyData = JSON.parse(jsonContent);
+            console.log('Main: Compilation successful, JSON file generated');
+            
+            // 如果有警告信息，添加到结果中
+            if (stderr.trim()) {
+              console.log('Main: Compilation successful with warnings:', stderr);
+              storyData.warnings = stderr.trim().split('\n').filter(line => line.trim());
+            }
+            
+            cleanup();
+            return resolve(storyData);
+          } else {
+            // 编译成功但没有生成JSON文件（可能是空文件或其他问题）
+            console.log('Main: Compilation succeeded but no JSON file generated');
+            const errorMessage = stderr.trim() || 'Compilation succeeded but no output generated';
+            cleanup();
+            return reject(new Error(errorMessage));
+          }
+        } catch (e) {
+          console.error('Main: Failed to read or parse generated JSON:', e);
+          const errorMessage = stderr.trim() || `Failed to process compilation result: ${e instanceof Error ? e.message : String(e)}`;
+          cleanup();
+          return reject(new Error(errorMessage));
+        }
+      } else {
+        // 编译失败
+        console.log('Main: Compilation failed with exit code:', code);
+        const errorMessage = stderr.trim() || stdout.trim() || `编译失败，退出码: ${code}`;
+        cleanup();
+        return reject(new Error(errorMessage));
       }
     });
   });
@@ -156,29 +254,40 @@ ipcMain.handle('export-game', async (_, mode: 'web' | 'desktop') => {
 
 // 读取目录内容，返回文件树结构
 ipcMain.handle('read-dir', async (_, dirPath: string) => {
-  const items = fs.readdirSync(dirPath, { withFileTypes: true });
-  const nodes = items.map(item => {
-    const fullPath = join(dirPath, item.name);
-    return {
-      name: item.name,
-      path: fullPath,
-      isDirectory: item.isDirectory(),
-      children: item.isDirectory() ? [] : undefined
-    };
-  });
-  // Sort directories first, then files
-  return nodes.sort((a, b) => {
-    if (a.isDirectory && !b.isDirectory) return -1;
-    if (!a.isDirectory && b.isDirectory) return 1;
-    return a.name.localeCompare(b.name);
-  });
+  // 验证路径参数
+  if (!dirPath || typeof dirPath !== 'string') {
+    console.error('read-dir: Invalid path received:', dirPath);
+    throw new Error('Invalid directory path provided');
+  }
+  
+  try {
+    const items = fs.readdirSync(dirPath, { withFileTypes: true });
+    const nodes = items.map(item => {
+      const fullPath = join(dirPath, item.name);
+      return {
+        name: item.name,
+        path: fullPath,
+        isDirectory: item.isDirectory(),
+        children: item.isDirectory() ? [] : undefined
+      };
+    });
+    // Sort directories first, then files
+    return nodes.sort((a, b) => {
+      if (a.isDirectory && !b.isDirectory) return -1;
+      if (!a.isDirectory && b.isDirectory) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  } catch (error) {
+    console.error('read-dir: Error reading directory:', dirPath, error);
+    throw error;
+  }
 });
 
 // 加载所有可用的 H5 插件
 ipcMain.handle('load-plugins', async () => {
   const pluginsDir = app.isPackaged
     ? join(process.resourcesPath, 'plugins')
-    : join(__dirname, '../plugins');
+    : join(__dirname, '../../plugins');
   
   if (!fs.existsSync(pluginsDir)) {
     return [];

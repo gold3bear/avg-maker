@@ -29,7 +29,12 @@ export const App: React.FC = () => {
           onViewChange={setView}
           onOpenProject={() =>
             window.inkAPI.openProject().then((path: string | null) => {
-              if (path) setActiveFile(path);
+              // openProject returns a directory path, don't set it as activeFile
+              // activeFile should only be set when user selects a file from ProjectExplorer
+              if (path) {
+                // Just trigger the project load, don't set activeFile to directory
+                setActiveFile(null);
+              }
             })
           }
           onExportWeb={() => window.inkAPI.exportGame('web')}
@@ -58,7 +63,7 @@ export const App: React.FC = () => {
                 onClose={() => setPluginCtx(null)}
               />
             ) : view === 'graph' ? (
-              <NodeGraph />
+              <NodeGraph filePath={activeFile} />
             ) : (
               <Preview filePath={activeFile} />
             )}

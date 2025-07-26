@@ -35,7 +35,7 @@ contextBridge.exposeInMainWorld('inkAPI', {
   },
   
   // Ink compilation
-  compileInk: (source: string, lintOnly: boolean = false) => ipcRenderer.invoke('compile-ink', source, lintOnly),
+  compileInk: (source: string, lintOnly: boolean = false, sourceFilePath?: string) => ipcRenderer.invoke('compile-ink', source, lintOnly, sourceFilePath),
   
   // Plugin system
   loadPlugins: () => ipcRenderer.invoke('load-plugins'),

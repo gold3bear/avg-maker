@@ -22,7 +22,7 @@ declare global {
       loadPlugins: () => Promise<PluginManifest[]>;
 
       // Ink 编译与预览
-      compileInk: (source: string, lintOnly?: boolean) => Promise<any>;
+      compileInk: (source: string, lintOnly?: boolean, sourceFilePath?: string) => Promise<any>;
       exportGame: (mode: 'web' | 'desktop') => Promise<{
         success: boolean;
         path: string;
