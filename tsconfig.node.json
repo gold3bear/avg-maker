@@ -1,25 +1,26 @@
 {
   "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
-    "target": "ES2023",
-    "lib": ["ES2023"],
-    "module": "ESNext",
-    "skipLibCheck": true,
-
-    /* Bundler mode */
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "moduleDetection": "force",
-    "noEmit": true,
-
-    /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "target": "ES2020",                // Node 14+ 均支持 ES2020 特性
+    "module": "ESNext",              // Electron 主进程环境
+    "rootDir": "electron",             // 源文件根目录
+    "outDir": "dist/electron",         // 输出到 dist/electron
+    "strict": true,                    // 打开所有严格检查
+    "esModuleInterop": true,           // 兼容 import x from "y"
+    "skipLibCheck": true,              // 跳过库类型检查，提升速度
+    "forceConsistentCasingInFileNames": true,
+    "sourceMap": true,                 // 生成 .map 便于调试
+    "incremental": true,               // 增量编译
+    "resolveJsonModule": true,         // 允许 import json
+    "allowJs": false,                 // 如需 JS 文件，可设为 true
+    "moduleResolution": "node",            // ← 改为 node
   },
-  "include": ["vite.config.ts"]
+  "include": [
+    "electron/**/*.ts"                 // 只编译 electron 目录下的 TS
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ]
 }
