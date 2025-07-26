@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",                // Node 14+ 均支持 ES2020 特性
-    "module": "ESNext",              // Electron 主进程环境
+    "module": "ESNext",              // ES modules for Node.js compatibility
     "rootDir": "electron",             // 源文件根目录
     "outDir": "dist/electron",         // 输出到 dist/electron
     "strict": true,                    // 打开所有严格检查

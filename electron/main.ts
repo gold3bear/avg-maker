@@ -153,3 +153,57 @@ ipcMain.handle('export-game', async (_, mode: 'web' | 'desktop') => {
     return { success: true, path: outDir };
   }
 });
+
+// 读取目录内容，返回文件树结构
+ipcMain.handle('read-dir', async (_, dirPath: string) => {
+  const items = fs.readdirSync(dirPath, { withFileTypes: true });
+  const nodes = items.map(item => {
+    const fullPath = join(dirPath, item.name);
+    return {
+      name: item.name,
+      path: fullPath,
+      isDirectory: item.isDirectory(),
+      children: item.isDirectory() ? [] : undefined
+    };
+  });
+  // Sort directories first, then files
+  return nodes.sort((a, b) => {
+    if (a.isDirectory && !b.isDirectory) return -1;
+    if (!a.isDirectory && b.isDirectory) return 1;
+    return a.name.localeCompare(b.name);
+  });
+});
+
+// 加载所有可用的 H5 插件
+ipcMain.handle('load-plugins', async () => {
+  const pluginsDir = app.isPackaged
+    ? join(process.resourcesPath, 'plugins')
+    : join(__dirname, '../plugins');
+  
+  if (!fs.existsSync(pluginsDir)) {
+    return [];
+  }
+  
+  const plugins: { id: string; name: string; version: string; description?: string; main: string; path: string }[] = [];
+  const items = fs.readdirSync(pluginsDir, { withFileTypes: true });
+  
+  for (const item of items) {
+    if (item.isDirectory()) {
+      const manifestPath = join(pluginsDir, item.name, 'manifest.json');
+      if (fs.existsSync(manifestPath)) {
+        try {
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+          plugins.push({
+            ...manifest,
+            id: item.name,
+            path: join(pluginsDir, item.name)
+          });
+        } catch (e) {
+          console.warn(`Failed to load plugin manifest: ${manifestPath}`, e);
+        }
+      }
+    }
+  }
+  
+  return plugins;
+});
