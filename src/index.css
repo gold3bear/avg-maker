@@ -1,0 +1,125 @@
+@import "tailwindcss";
+:root {
+  width: 100%!important;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+
+}
+#root { 
+  width: 100%;
+  background:#242424;
+}
+
+a:hover {
+  color: #535bf2;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+}
+
+/* src/index.css 或 App.module.css */
+.ink-content {
+  line-height: 1.6;
+  color: #f0f0f0;
+  font-size: 1rem;
+}
+
+/* 粗体 <b> / <strong> */
+.ink-content b,
+.ink-content strong {
+  font-weight: 700;
+  color: #ffa500;           /* 橙色高亮 */
+  text-shadow: 0 0 2px rgba(0,0,0,0.5);
+}
+
+/* 斜体 <i> / <em> */
+.ink-content i,
+.ink-content em {
+  font-style: italic;
+  color: #7fffd4;
+  font-size: larger;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);        
+}
+
+/* 下划线 <u> */
+.ink-content u {
+  text-decoration: underline;
+  text-decoration-color: #ff69b4; /* 粉色下划线 */
+}
+
+/* 引用段落 <blockquote> */
+.ink-content blockquote {
+  margin: 1rem 0;
+  padding: 0.5rem 1rem;
+  border-left: 4px solid #8e44ad;
+  background: rgba(142, 68, 173, 0.1);
+  font-style: italic;
+}
+
+/* 小标题 <h2> / <h3> （如 Ink 中用作章节标题） */
+.ink-content h2,
+.ink-content h3 {
+  margin: 1.5rem 0 0.5rem;
+  color: #3498db;
+  font-weight: 600;
+}
+
+/* 链接 <a> */
+.ink-content a {
+  color: #1abc9c;
+  text-decoration: none;
+  border-bottom: 1px dashed #1abc9c;
+}
+.ink-content a:hover {
+  color: #16a085;
+  border-bottom-style: solid;
+}
+
+/* 按钮容器（如果按钮也在 .ink-content 内） */
+.ink-content button {
+  margin: 0.5rem 0;
+  padding: 0.4rem 0.8rem;
+  background: #2c3e50;
+  color: #ecf0f1;
+  border: 1px solid #34495e;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.ink-content button:hover {
+  background: #34495e;
+}
