@@ -28,16 +28,26 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelect }) =>
     if (dir) {
       setProjectPath(dir);
       loadTree(dir);
-      // 可选：监听文件变更，自动刷新
-      window.inkAPI.watchFiles([dir]);
-      window.inkAPI.onFileChanged((changedPath: string) => {
-        loadTree(projectPath!);
-      });
     }
   };
 
+  // 监听文件变更
+  useEffect(() => {
+    if (projectPath) {
+      window.inkAPI.watchFiles([projectPath]);
+      window.inkAPI.onFileChanged((changedPath: string) => {
+        loadTree(projectPath);
+      });
+    }
+  }, [projectPath]);
+
   // 递归加载目录结构
   const loadTree = async (dirPath: string) => {
+    if (!dirPath) {
+      console.error('loadTree: Invalid directory path:', dirPath);
+      return;
+    }
+    
     try {
       // 假设 ipc 已实现 readDir，返回 FileNode[]
       const nodes: FileNode[] = await window.inkAPI.readDir(dirPath);
