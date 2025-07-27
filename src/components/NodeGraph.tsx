@@ -1,21 +1,26 @@
 // src/components/NodeGraph.tsx
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useContext } from 'react';
 import ForceGraph2D, { type ForceGraphMethods } from 'react-force-graph-2d';
 import type { GraphNode, GraphLink } from '../utils/storyGraph.ts';
 import { buildStoryGraph } from '../utils/storyGraph.ts';
+import { InkContext } from '../context/InkContext';
 
 interface NodeGraphProps {
   filePath?: string | null;
 }
 
 export const NodeGraph: React.FC<NodeGraphProps> = ({ filePath }) => {
-  const fgRef = useRef<ForceGraphMethods>();
+  const fgRef = useRef<ForceGraphMethods>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [graph, setGraph] = useState<{ nodes: GraphNode[]; links: GraphLink[] }>({ nodes: [], links: [] });
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const { nodes, links } = graph;
+  
+  // 使用InkContext的错误报告功能，这样编译错误会自动反映在Editor中
+  const inkContext = useContext(InkContext);
+  const { reportCompilationErrors } = inkContext || {};
 
   // 当文件路径改变时，重新编译并生成图
   useEffect(() => {
@@ -44,7 +49,7 @@ export const NodeGraph: React.FC<NodeGraphProps> = ({ filePath }) => {
         // 读取文件内容
         const source = await window.inkAPI.readFile(filePath);
         
-        // 编译文件，传递文件路径以支持INCLUDE语法
+        // 编译文件生成图数据，同时将编译错误传递给Editor
         const compiled = await window.inkAPI.compileInk(source, false, filePath);
         
         // 生成图数据
@@ -57,6 +62,16 @@ export const NodeGraph: React.FC<NodeGraphProps> = ({ filePath }) => {
         if (!cancelled) {
           setError(error instanceof Error ? error.message : String(error));
           setGraph({ nodes: [], links: [] });
+          
+          // 将编译错误传递给Editor
+          if (reportCompilationErrors) {
+            try {
+              const source = await window.inkAPI.readFile(filePath);
+              await reportCompilationErrors(source, error instanceof Error ? error.message : String(error), filePath);
+            } catch {
+              // 错误报告失败，忽略
+            }
+          }
         }
       } finally {
         if (!cancelled) {

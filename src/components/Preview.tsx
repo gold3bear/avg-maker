@@ -20,33 +20,32 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
   } | null>(null);
 
   useEffect(() => {
-    if (!filePath) return;
-
-    setStory(null);
-    setOutput([]);
-    setChoices([]);
-    setError(null);
-    setPluginCtx(null);
+    if (!filePath) {
+      // Clear preview when no file is selected
+      setStory(null);
+      setOutput([]);
+      setChoices([]);
+      setError(null);
+      setPluginCtx(null);
+      return;
+    }
 
     const init = async () => {
-      if (!filePath) {
-        // Clear preview when no file is selected
-        setStory(null);
-        setOutput([]);
-        setChoices([]);
-        setError(null);
-        return;
-      }
+      // 开始编译时，清除错误状态，但保留现有内容直到新内容准备好
+      setError(null);
       
       try {
         // 1. 读取 Ink 源码
         const source: string = await window.inkAPI.readFile(filePath);
 
         // 2. 编译为 JSON，传递文件路径以支持INCLUDE语法
+        console.log('Preview: Starting compilation for:', filePath);
         const json = await window.inkAPI.compileInk(source, false, filePath);
+        console.log('Preview: Compilation successful, json received:', !!json);
 
         // 3. 创建 inkjs Story
         const s = new Story(json);
+        console.log('Preview: Story created successfully');
 
         // 4. 绑定外部函数 runPlugin
         s.BindExternalFunction('runPlugin', (id: string, paramJson: string) => {

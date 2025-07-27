@@ -8,8 +8,7 @@ import { NodeGraph } from './components/NodeGraph';
 import { PluginHost } from './components/PluginHost';
 
 export const App: React.FC = () => {
-  const { plugins } = useContext(ProjectContext)!;
-  const [activeFile, setActiveFile] = useState<string | null>(null);
+  const { plugins, activeFile, selectFile, openProject } = useContext(ProjectContext)!;
   const [view, setView] = useState<'preview' | 'graph'>('preview');
   const [pluginCtx, setPluginCtx] = useState<{
     manifest: any;
@@ -19,7 +18,7 @@ export const App: React.FC = () => {
   return (
     <div className="h-screen flex bg-gray-100">
       {/* 左侧：项目文件树 */}
-      <ProjectExplorer onSelect={setActiveFile} />
+      <ProjectExplorer onSelect={selectFile} />
 
       {/* 右侧：主区域 */}
       <div className="flex-1 flex flex-col">
@@ -27,16 +26,7 @@ export const App: React.FC = () => {
         <Toolbar
           view={view}
           onViewChange={setView}
-          onOpenProject={() =>
-            window.inkAPI.openProject().then((path: string | null) => {
-              // openProject returns a directory path, don't set it as activeFile
-              // activeFile should only be set when user selects a file from ProjectExplorer
-              if (path) {
-                // Just trigger the project load, don't set activeFile to directory
-                setActiveFile(null);
-              }
-            })
-          }
+          onOpenProject={openProject}
           onExportWeb={() => window.inkAPI.exportGame('web')}
           onExportDesktop={() => window.inkAPI.exportGame('desktop')}
         />

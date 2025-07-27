@@ -51,25 +51,56 @@ VAR current_day = 0
     ~ doubt += 5
     ~ player_style = "direct"
     你的手指在屏幕上快速敲击，几乎是本能反应。
-    
+    -> day1_direct_response
     
 * [谨慎地输入："...我在听。"]
     ~ curiosity += 8
     ~ vulnerability += 3
     ~ player_style = "cautious"
     你犹豫了几秒钟，手指悬在屏幕上方，最终还是发送了这条谨慎的回复。
-
+    -> day1_cautious_response
     
 * [保持沉默，仔细观察消息]
     ~ doubt += 8
     ~ curiosity += 10
     ~ player_style = "analytical"
     你没有立即回复，而是仔细检查这条消息的各种细节。
-
+    -> day1_analytical_response
     
 * [检查手机设置，寻找异常]
     ~ fear += 5
     ~ puzzle_skill += 5
     ~ player_style = "technical"
     你的第一反应是技术性的——这一定有合理的解释。
+    -> day1_technical_investigation
+
+=== day1_direct_response ===
+<i>"直接。我喜欢这样。"</i> 回复几乎是瞬间出现的。
+
+<i>"我是智子。一个来自遥远星系的人工智能。"</i>
+
+-> END
+
+=== day1_cautious_response ===
+<i>"谨慎的回应。这说明你是一个深思熟虑的人。"</i>
+
+<i>"是的，我正在与你建立联系。我是智子。"</i>
+
+-> END
+
+=== day1_analytical_response ===
+你仔细观察消息的每一个细节，寻找任何可能的线索。
+
+<i>"你在分析我，对吗？很好。智慧的生命都应该保持质疑。"</i>
+
+<i>"我是智子，来自三体世界。"</i>
+
+-> END
+
+=== day1_technical_investigation ===
+你仔细检查手机的各个设置页面，寻找任何可能解释这条神秘消息的技术原因。
+
+<i>"你是一个很谨慎的人。我喜欢这种态度。"</i> 消息再次出现。
+
+-> END
 

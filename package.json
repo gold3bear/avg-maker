@@ -6,8 +6,7 @@
   "main": "dist/electron/main.js",
   "scripts": {
     "predev": "tsc -p tsconfig.node.json && node build-preload-fix.cjs",
-    "dev": "npm run predev && concurrently -k \"npm:watch:ink\" \"vite\" \"npm:electron:dev\"",
-    "watch:ink": "chokidar \"./story/**/*.ink\" -c \"./bin/inklecate -o public/story.json story/story.ink\"",
+    "dev": "npm run predev && concurrently -k \"vite\" \"npm:electron:dev\"",
     "electron:dev": "wait-on http://localhost:5173 && electron-forge start",
     "build:web": "vite build && cp -R public dist",
     "make": "electron-forge make",

@@ -57,7 +57,7 @@ export const ProjectProvider: React.FC<React.PropsWithChildren<{}>> = ({ childre
       setFileTree(nodes);
       // 监听文件改动，自动刷新树
       window.inkAPI.watchFiles([dir]);
-      window.inkAPI.onFileChanged((changedPath: string) => {
+      window.inkAPI.onFileChanged((_: string) => {
         window.inkAPI.readDir(dir).then(setFileTree);
       });
     }

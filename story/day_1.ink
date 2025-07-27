@@ -888,7 +888,7 @@ Day 1 评价：
 
 你准备好继续这段跨文明的友谊之旅了吗？
 
-* [开始第二天] -> day2_actual_start
+// * [开始第二天] -> day2_actual_start
 * [回顾第一天] -> day1_statistics
 -> DONE
 
