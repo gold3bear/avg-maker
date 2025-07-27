@@ -1,5 +1,4 @@
-````markdown
-# 本地 Ink 编辑器 (my-ink-editor)
+# AVG Maker
 
 一个基于 **React + Tailwind CSS + Electron** 的本地 Ink 剧本编辑与运行工具，支持：
 
@@ -25,15 +24,15 @@
 ### 克隆 & 安装
 
 ```bash
-git clone https://github.com/your-org/my-ink-editor.git
-cd my-ink-editor
+git clone https://github.com/gold3bear/avg-maker.git
+cd avg-maker
 npm install
-````
+```
 
 ### 目录结构
 
 ```
-my-ink-editor/
+avg-maker/
 ├── bin/                   # inklecate、DLL 等本地编译器
 ├── story/                 # 示例或当前打开的 .ink 项目
 │   └── ….ink

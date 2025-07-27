@@ -1,5 +1,5 @@
 {
-  "name": "avg_master",
+  "name": "avg-maker",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -50,37 +50,6 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.35.1",
     "vite": "^7.0.4",
-    "wait-on": "^7.0.1"
-  },
-  "config": {
-    "forge": {
-      "packagerConfig": {
-        "extraResource": [
-          "bin/**/*",
-          "story/**/*",
-          "plugins/**/*"
-        ]
-      },
-      "makers": [
-        {
-          "name": "@electron-forge/maker-squirrel",
-          "config": {}
-        },
-        {
-          "name": "@electron-forge/maker-zip",
-          "platforms": [
-            "darwin"
-          ]
-        },
-        {
-          "name": "@electron-forge/maker-deb",
-          "config": {}
-        },
-        {
-          "name": "@electron-forge/maker-rpm",
-          "config": {}
-        }
-      ]
-    }
+    "wait-on": "^8.0.2"
   }
 }

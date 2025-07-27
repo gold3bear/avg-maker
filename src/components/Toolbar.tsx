@@ -1,4 +1,5 @@
 import React from 'react';
+import { ThemeSelector } from './ThemeSelector';
 
 /**
  * 工具栏属性
@@ -26,44 +27,115 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onExportWeb,
   onExportDesktop
 }) => {
-  const activeClass = 'bg-indigo-600 text-white';
-  const inactiveClass = 'bg-white text-gray-700 hover:bg-gray-100';
-
   return (
-    <div className="flex items-center justify-between bg-gray-200 p-2 border-b">
+    <div 
+      className="flex items-center justify-between p-2"
+      style={{
+        backgroundColor: 'var(--color-toolbarBackground)',
+        borderBottom: `1px solid var(--color-toolbarBorder)`,
+        color: 'var(--color-toolbarForeground)',
+      }}
+    >
       {/* 左侧按钮组：打开项目 + 视图切换 */}
       <div className="flex space-x-2">
         <button
           onClick={onOpenProject}
-          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500"
+          className="px-3 py-1 rounded text-sm font-medium transition-colors"
+          style={{
+            backgroundColor: 'var(--color-buttonPrimary)',
+            color: 'var(--color-surface)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--color-buttonPrimaryHover)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--color-buttonPrimary)';
+          }}
         >
           打开项目
         </button>
+        
         <button
           onClick={() => onViewChange('preview')}
-          className={`px-3 py-1 rounded ${view === 'preview' ? activeClass : inactiveClass}`}
+          className="px-3 py-1 rounded text-sm font-medium transition-colors"
+          style={{
+            backgroundColor: view === 'preview' ? 'var(--color-active)' : 'var(--color-buttonSecondary)',
+            color: view === 'preview' ? 'var(--color-surface)' : 'var(--color-textPrimary)',
+            border: `1px solid var(--color-border)`,
+          }}
+          onMouseEnter={(e) => {
+            if (view !== 'preview') {
+              e.currentTarget.style.backgroundColor = 'var(--color-hover)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (view !== 'preview') {
+              e.currentTarget.style.backgroundColor = 'var(--color-buttonSecondary)';
+            }
+          }}
         >
           预览
         </button>
+        
         <button
           onClick={() => onViewChange('graph')}
-          className={`px-3 py-1 rounded ${view === 'graph' ? activeClass : inactiveClass}`}
+          className="px-3 py-1 rounded text-sm font-medium transition-colors"
+          style={{
+            backgroundColor: view === 'graph' ? 'var(--color-active)' : 'var(--color-buttonSecondary)',
+            color: view === 'graph' ? 'var(--color-surface)' : 'var(--color-textPrimary)',
+            border: `1px solid var(--color-border)`,
+          }}
+          onMouseEnter={(e) => {
+            if (view !== 'graph') {
+              e.currentTarget.style.backgroundColor = 'var(--color-hover)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (view !== 'graph') {
+              e.currentTarget.style.backgroundColor = 'var(--color-buttonSecondary)';
+            }
+          }}
         >
           节点图
         </button>
       </div>
 
-      {/* 右侧按钮组：导出 */}
-      <div className="flex space-x-2">
+      {/* 右侧按钮组：主题选择器 + 导出 */}
+      <div className="flex items-center space-x-2">
+        <ThemeSelector />
+        
+        <div className="w-px h-6" style={{ backgroundColor: 'var(--color-border)' }} />
+        
         <button
           onClick={onExportWeb}
-          className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-500"
+          className="px-3 py-1 rounded text-sm font-medium transition-colors"
+          style={{
+            backgroundColor: 'var(--color-success)',
+            color: 'var(--color-surface)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = '0.9';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = '1';
+          }}
         >
           导出网页
         </button>
+        
         <button
           onClick={onExportDesktop}
-          className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-500"
+          className="px-3 py-1 rounded text-sm font-medium transition-colors"
+          style={{
+            backgroundColor: 'var(--color-success)',
+            color: 'var(--color-surface)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.opacity = '0.9';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.opacity = '1';
+          }}
         >
           导出桌面
         </button>

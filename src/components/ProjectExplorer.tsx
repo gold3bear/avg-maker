@@ -26,7 +26,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelect }) =>
     throw new Error('ProjectExplorer must be used within ProjectProvider');
   }
   
-  const { fileTree, openProject } = projectContext;
+  const { fileTree } = projectContext;
 
   // 渲染树状列表
   const renderTree = (nodes: FileNode[]) => (
@@ -34,10 +34,25 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelect }) =>
       {nodes.map((node) => (
         <li key={node.path} className="mt-1">
           {node.isDirectory ? (
-            <div className="font-medium text-gray-700">📁 {node.name}</div>
+            <div 
+              className="font-medium px-2 py-1 rounded"
+              style={{ color: 'var(--color-textSecondary)' }}
+            >
+              📁 {node.name}
+            </div>
           ) : (
             <button
-              className="text-left hover:underline text-blue-600"
+              className="text-left px-2 py-1 rounded w-full text-sm transition-colors"
+              style={{ 
+                color: 'var(--color-textPrimary)',
+                backgroundColor: 'transparent'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--color-hover)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
               onClick={() => onSelect(node.path)}
             >
               📄 {node.name}
@@ -50,18 +65,24 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelect }) =>
   );
 
   return (
-    <div className="w-64 bg-gray-50 border-r flex flex-col">
-      <button
-        className="m-2 px-3 py-1 bg-blue-500 text-white rounded"
-        onClick={openProject}
-      >
-        打开项目
-      </button>
-      <div className="flex-1 overflow-auto">
+    <div 
+      className="w-64 flex flex-col"
+      style={{ 
+        backgroundColor: 'var(--color-sidebarBackground)',
+        borderRight: `1px solid var(--color-sidebarBorder)`,
+        color: 'var(--color-sidebarForeground)'
+      }}
+    >
+      <div className="flex-1 overflow-auto p-2">
         {fileTree.length > 0 ? (
           renderTree(fileTree)
         ) : (
-          <div className="p-2 text-gray-500">未打开项目</div>
+          <div 
+            className="p-2 text-sm text-center"
+            style={{ color: 'var(--color-textMuted)' }}
+          >
+            未打开项目
+          </div>
         )}
       </div>
     </div>

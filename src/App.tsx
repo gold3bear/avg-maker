@@ -1,5 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { ProjectContext } from './context/ProjectContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { Toolbar } from './components/Toolbar';
 import { ProjectExplorer } from './components/ProjectExplorer';
 import { Editor } from './components/Editor';
@@ -7,7 +8,7 @@ import { Preview } from './components/Preview';
 import { NodeGraph } from './components/NodeGraph';
 import { PluginHost } from './components/PluginHost';
 
-export const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const { plugins, activeFile, selectFile, openProject } = useContext(ProjectContext)!;
   const [view, setView] = useState<'preview' | 'graph'>('preview');
   const [pluginCtx, setPluginCtx] = useState<{
@@ -16,7 +17,10 @@ export const App: React.FC = () => {
   } | null>(null);
 
   return (
-    <div className="h-screen flex bg-gray-100">
+    <div 
+      className="h-screen flex"
+      style={{ backgroundColor: 'var(--color-primary)' }}
+    >
       {/* 左侧：项目文件树 */}
       <ProjectExplorer onSelect={selectFile} />
 
@@ -34,7 +38,13 @@ export const App: React.FC = () => {
         {/* 内容区：分栏布局 */}
         <div className="flex flex-1 overflow-hidden">
           {/* 编辑器区域 */}
-          <div className="w-1/3 h-full border-r bg-white">
+          <div 
+            className="w-1/3 h-full"
+            style={{ 
+              borderRight: `1px solid var(--color-border)`,
+              backgroundColor: 'var(--color-editorBackground)',
+            }}
+          >
             <Editor
               filePath={activeFile}
               onRunPlugin={(id, params) => {
@@ -45,7 +55,10 @@ export const App: React.FC = () => {
           </div>
 
           {/* 预览 / 节点图 / 插件宿主 */}
-          <div className="flex-1 relative">
+          <div 
+            className="flex-1 relative"
+            style={{ backgroundColor: 'var(--color-surface)' }}
+          >
             {pluginCtx ? (
               <PluginHost
                 plugin={pluginCtx.manifest}
@@ -61,6 +74,15 @@ export const App: React.FC = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+// 使用ThemeProvider包装App
+export const App: React.FC = () => {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 };
 

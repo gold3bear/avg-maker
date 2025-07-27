@@ -390,8 +390,16 @@ export function registerInkLanguage(monaco: typeof import('monaco-editor')) {
   // 注册代码折叠
   monaco.languages.registerFoldingRangeProvider('ink', inkFoldingProvider);
 
-  // 设置主题
-  monaco.editor.defineTheme('ink-theme', {
+  // 设置默认主题（将在ThemeProvider中动态更新）
+  setupInkThemes(monaco);
+}
+
+/**
+ * 设置所有Ink编辑器主题
+ */
+export function setupInkThemes(monaco: typeof import('monaco-editor')) {
+  // Light主题
+  monaco.editor.defineTheme('ink-light', {
     base: 'vs',
     inherit: true,
     rules: [
@@ -412,12 +420,151 @@ export function registerInkLanguage(monaco: typeof import('monaco-editor')) {
     colors: {
       'editor.background': '#FFFFFF',
       'editor.foreground': '#000000',
+      'editor.lineHighlightBackground': '#F0F0F0',
+      'editor.selectionBackground': '#ADD6FF',
+      'editorLineNumber.foreground': '#237893',
+      'editorGutter.background': '#FFFFFF',
       'editorError.foreground': '#E51400',
       'editorWarning.foreground': '#FF8C00',
       'editorInfo.foreground': '#1BA1E2',
       'editorError.border': '#E51400',
       'editorWarning.border': '#FF8C00',
-      'editorInfo.border': '#1BA1E2'
+      'editorInfo.border': '#1BA1E2',
+      'scrollbar.shadow': '#DDDDDD',
+      'scrollbarSlider.background': '#C2C2C2',
+      'scrollbarSlider.hoverBackground': '#A6A6A6',
+      'scrollbarSlider.activeBackground': '#8C8C8C'
     }
   });
+
+  // Dark主题 (VSCode Dark+)
+  monaco.editor.defineTheme('ink-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
+      { token: 'keyword', foreground: '569CD6', fontStyle: 'bold' },
+      { token: 'keyword.choice', foreground: 'C586C0', fontStyle: 'bold' },
+      { token: 'keyword.flow', foreground: 'FF8C00', fontStyle: 'bold' },
+      { token: 'keyword.logic', foreground: '4EC9B0' },
+      { token: 'keyword.conditional', foreground: 'C586C0' },
+      { token: 'string', foreground: 'CE9178' },
+      { token: 'number', foreground: 'B5CEA8' },
+      { token: 'type.identifier', foreground: '4EC9B0', fontStyle: 'bold' },
+      { token: 'function', foreground: 'DCDCAA', fontStyle: 'bold' },
+      { token: 'variable', foreground: '9CDCFE' },
+      { token: 'tag', foreground: 'C792EA', fontStyle: 'italic' },
+      { token: 'operator', foreground: 'D4D4D4' }
+    ],
+    colors: {
+      'editor.background': '#1E1E1E',
+      'editor.foreground': '#D4D4D4',
+      'editor.lineHighlightBackground': '#2A2D2E',
+      'editor.selectionBackground': '#264F78',
+      'editorLineNumber.foreground': '#858585',
+      'editorGutter.background': '#1E1E1E',
+      'editorError.foreground': '#F85149',
+      'editorWarning.foreground': '#D7BA7D',
+      'editorInfo.foreground': '#75BEFF',
+      'editorError.border': '#F85149',
+      'editorWarning.border': '#D7BA7D',
+      'editorInfo.border': '#75BEFF',
+      'scrollbar.shadow': '#000000',
+      'scrollbarSlider.background': '#424242',
+      'scrollbarSlider.hoverBackground': '#4F4F4F',
+      'scrollbarSlider.activeBackground': '#646464'
+    }
+  });
+
+  // GitHub Dark主题
+  monaco.editor.defineTheme('ink-github-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: '8B949E', fontStyle: 'italic' },
+      { token: 'keyword', foreground: 'FFA657', fontStyle: 'bold' },
+      { token: 'keyword.choice', foreground: 'F97583', fontStyle: 'bold' },
+      { token: 'keyword.flow', foreground: 'FF7B72', fontStyle: 'bold' },
+      { token: 'keyword.logic', foreground: '56D364' },
+      { token: 'keyword.conditional', foreground: 'F97583' },
+      { token: 'string', foreground: 'A5D6FF' },
+      { token: 'number', foreground: '79C0FF' },
+      { token: 'type.identifier', foreground: 'FFA657', fontStyle: 'bold' },
+      { token: 'function', foreground: 'D2A8FF', fontStyle: 'bold' },
+      { token: 'variable', foreground: 'FFA657' },
+      { token: 'tag', foreground: '7EE787', fontStyle: 'italic' },
+      { token: 'operator', foreground: 'F0F6FC' }
+    ],
+    colors: {
+      'editor.background': '#0D1117',
+      'editor.foreground': '#F0F6FC',
+      'editor.lineHighlightBackground': '#161B22',
+      'editor.selectionBackground': '#264F78',
+      'editorLineNumber.foreground': '#7D8590',
+      'editorGutter.background': '#0D1117',
+      'editorError.foreground': '#F85149',
+      'editorWarning.foreground': '#D29922',
+      'editorInfo.foreground': '#58A6FF',
+      'editorError.border': '#F85149',
+      'editorWarning.border': '#D29922',
+      'editorInfo.border': '#58A6FF',
+      'scrollbar.shadow': '#000000',
+      'scrollbarSlider.background': '#30363D',
+      'scrollbarSlider.hoverBackground': '#424A53',
+      'scrollbarSlider.activeBackground': '#545D68'
+    }
+  });
+
+  // Monokai主题
+  monaco.editor.defineTheme('ink-monokai', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: '75715E', fontStyle: 'italic' },
+      { token: 'keyword', foreground: 'F92672', fontStyle: 'bold' },
+      { token: 'keyword.choice', foreground: 'AE81FF', fontStyle: 'bold' },
+      { token: 'keyword.flow', foreground: 'FD971F', fontStyle: 'bold' },
+      { token: 'keyword.logic', foreground: '66D9EF' },
+      { token: 'keyword.conditional', foreground: 'AE81FF' },
+      { token: 'string', foreground: 'E6DB74' },
+      { token: 'number', foreground: 'AE81FF' },
+      { token: 'type.identifier', foreground: '66D9EF', fontStyle: 'bold' },
+      { token: 'function', foreground: 'A6E22E', fontStyle: 'bold' },
+      { token: 'variable', foreground: 'F8F8F2' },
+      { token: 'tag', foreground: 'F92672', fontStyle: 'italic' },
+      { token: 'operator', foreground: 'F92672' }
+    ],
+    colors: {
+      'editor.background': '#272822',
+      'editor.foreground': '#F8F8F2',
+      'editor.lineHighlightBackground': '#3E3D32',
+      'editor.selectionBackground': '#49483E',
+      'editorLineNumber.foreground': '#90908A',
+      'editorGutter.background': '#272822',
+      'editorError.foreground': '#F92672',
+      'editorWarning.foreground': 'FD971F',
+      'editorInfo.foreground': '66D9EF',
+      'editorError.border': '#F92672',
+      'editorWarning.border': 'FD971F',
+      'editorInfo.border': '#66D9EF',
+      'scrollbar.shadow': '#000000',
+      'scrollbarSlider.background': '#75715E',
+      'scrollbarSlider.hoverBackground': '#90908A',
+      'scrollbarSlider.activeBackground': '#A6A6A6'
+    }
+  });
+}
+
+/**
+ * 获取主题对应的Monaco主题名称
+ */
+export function getMonacoThemeName(themeName: string): string {
+  const themeMap: { [key: string]: string } = {
+    'light': 'ink-light',
+    'dark': 'ink-dark',
+    'github-dark': 'ink-github-dark',
+    'monokai': 'ink-monokai'
+  };
+  
+  return themeMap[themeName] || 'ink-dark';
 }

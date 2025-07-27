@@ -3,7 +3,8 @@ import MonacoEditor, { type OnMount, type BeforeMount } from '@monaco-editor/rea
 import type * as MonacoNamespace from 'monaco-editor';
 import { debounce } from '../hooks/useDebounce';
 import { InkContext, type Marker } from '../context/InkContext.tsx';
-import { registerInkLanguage } from '../utils/inkLanguage';
+import { useTheme } from '../context/ThemeContext';
+import { registerInkLanguage, getMonacoThemeName } from '../utils/inkLanguage';
 
 interface EditorProps {
   /** 当前编辑的本地 Ink 文件路径 */
@@ -14,6 +15,7 @@ interface EditorProps {
 
 export const Editor: React.FC<EditorProps> = ({ filePath }) => {
   const { lintInk, externalErrors } = useContext(InkContext)!;
+  const { currentTheme } = useTheme();
   const [content, setContent] = useState<string>('');
   const monacoRef = useRef<typeof MonacoNamespace | null>(null);
   const editorRef = useRef<MonacoNamespace.editor.IStandaloneCodeEditor | null>(null);
@@ -148,6 +150,15 @@ export const Editor: React.FC<EditorProps> = ({ filePath }) => {
     }
   }, [editorRef.current, monacoRef.current, content, filePath, debouncedLint]);
 
+  // 监听主题变化并更新编辑器主题
+  useEffect(() => {
+    if (editorRef.current && monacoRef.current) {
+      const themeName = getMonacoThemeName(currentTheme);
+      monacoRef.current.editor.setTheme(themeName);
+      console.log('Editor: Theme changed to', themeName);
+    }
+  }, [currentTheme]);
+
   // 在编辑器加载前获取Monaco SDK实例
   const handleBeforeMount: BeforeMount = (monaco) => {
     monacoRef.current = monaco;
@@ -177,9 +188,10 @@ export const Editor: React.FC<EditorProps> = ({ filePath }) => {
       'semanticHighlighting.enabled': true,
     });
     
-    // 应用Ink主题
+    // 应用当前主题
     if (monacoRef.current) {
-      monacoRef.current.editor.setTheme('ink-theme');
+      const themeName = getMonacoThemeName(currentTheme);
+      monacoRef.current.editor.setTheme(themeName);
     }
   };
 

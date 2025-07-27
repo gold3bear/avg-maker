@@ -1,0 +1,195 @@
+/* src/global.css */
+/* 全局主题样式 */
+
+/* 全局重置和基础样式 */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+}
+
+/* 确保body使用主题颜色 */
+body {
+  background-color: var(--color-primary, #ffffff);
+  color: var(--color-textPrimary, #000000);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface, #f0f0f0);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar, #c2c2c2);
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-textMuted, #8e8e8e);
+}
+
+/* 主题过渡动画 */
+.theme-transition {
+  transition: 
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+/* Monaco Editor 主题变量支持 */
+.monaco-editor {
+  --vscode-foreground: var(--color-textPrimary);
+  --vscode-editorError-foreground: var(--color-error);
+  --vscode-editorWarning-foreground: var(--color-warning);
+  --vscode-editorInfo-foreground: var(--color-info);
+}
+
+/* 确保所有主题的字体一致性 */
+.monaco-editor .view-lines {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
+}
+
+/* 优化深色主题下的阴影 */
+.theme-dark .shadow,
+.theme-github-dark .shadow,
+.theme-monokai .shadow {
+  box-shadow: 0 4px 12px var(--color-shadow);
+}
+
+.theme-light .shadow {
+  box-shadow: 0 2px 8px var(--color-shadow);
+}
+
+/* 选择文本的颜色 */
+::selection {
+  background-color: var(--color-focus);
+  color: var(--color-surface);
+}
+
+::-moz-selection {
+  background-color: var(--color-focus);
+  color: var(--color-surface);
+}
+
+/* 焦点样式 */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* 禁用状态 */
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 加载状态指示器 */
+.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* 工具提示样式 */
+.tooltip {
+  background-color: var(--color-surface);
+  color: var(--color-textPrimary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  box-shadow: 0 2px 8px var(--color-shadow);
+  z-index: 1000;
+}
+
+/* 确保深色主题下链接可见 */
+a {
+  color: var(--color-focus);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* 代码块样式 */
+code {
+  background-color: var(--color-surface);
+  color: var(--color-textPrimary);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+}
+
+pre {
+  background-color: var(--color-surface);
+  color: var(--color-textPrimary);
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* 错误信息样式 */
+.error-message {
+  color: var(--color-error);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-error);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 8px 0;
+}
+
+.warning-message {
+  color: var(--color-warning);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-warning);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 8px 0;
+}
+
+.info-message {
+  color: var(--color-info);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-info);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 8px 0;
+}
+
+.success-message {
+  color: var(--color-success);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-success);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 8px 0;
+}
