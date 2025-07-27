@@ -54,7 +54,11 @@ declare global {
       readDir: (dirPath: string) => Promise<FileNode[]>;
       watchFiles: (paths: string[]) => Promise<boolean>;
       onFileChanged: (callback: (filePath: string) => void) => void;
-      compileInk: (source: string, lintOnly?: boolean) => Promise<unknown>;
+      compileInk: (
+        source: string,
+        lintOnly?: boolean,
+        sourceFilePath?: string
+      ) => Promise<unknown>;
       loadPlugins: () => Promise<PluginManifest[]>;
       exportGame: (mode: 'web' | 'desktop') => Promise<{ success: boolean; path: string; canceled?: boolean }>;
     };
