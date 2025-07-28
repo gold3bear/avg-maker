@@ -3,6 +3,8 @@ import { ProjectContext } from './context/ProjectContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { Toolbar } from './components/Toolbar';
 import { ProjectExplorer } from './components/ProjectExplorer';
+import { ActivityBar } from './components/ActivityBar';
+import { StatusBar } from './components/StatusBar';
 import { Editor } from './components/Editor';
 import { Preview } from './components/Preview';
 import { NodeGraph } from './components/NodeGraph';
@@ -17,10 +19,13 @@ const AppContent: React.FC = () => {
   } | null>(null);
 
   return (
-    <div 
+    <div
       className="h-screen flex"
       style={{ backgroundColor: 'var(--color-primary)' }}
     >
+      {/* 活动栏 */}
+      <ActivityBar />
+
       {/* 左侧：项目文件树 */}
       <ProjectExplorer onSelect={selectFile} />
 
@@ -38,9 +43,9 @@ const AppContent: React.FC = () => {
         {/* 内容区：分栏布局 */}
         <div className="flex flex-1 overflow-hidden">
           {/* 编辑器区域 */}
-          <div 
-            className="w-1/3 h-full"
-            style={{ 
+          <div
+            className="w-1/2 h-full"
+            style={{
               borderRight: `1px solid var(--color-border)`,
               backgroundColor: 'var(--color-editorBackground)',
             }}
@@ -72,6 +77,9 @@ const AppContent: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* 底部状态栏 */}
+        <StatusBar filePath={activeFile} />
       </div>
     </div>
   );
