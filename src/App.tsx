@@ -9,10 +9,12 @@ import { Editor } from './components/Editor';
 import { Preview } from './components/Preview';
 import { NodeGraph } from './components/NodeGraph';
 import { PluginHost } from './components/PluginHost';
+import type { SidebarTab } from './types/sidebar';
 
 const AppContent: React.FC = () => {
   const { plugins, activeFile, selectFile, openProject } = useContext(ProjectContext)!;
   const [view, setView] = useState<'preview' | 'graph'>('preview');
+  const [activeTab, setActiveTab] = useState<SidebarTab>('explorer');
   const [pluginCtx, setPluginCtx] = useState<{
     manifest: any;
     params?: any;
@@ -23,11 +25,11 @@ const AppContent: React.FC = () => {
       className="h-screen flex"
       style={{ backgroundColor: 'var(--color-primary)' }}
     >
-      {/* 活动栏 */}
-      <ActivityBar />
+      {/* 左侧：活动栏 */}
+      <ActivityBar activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* 左侧：项目文件树 */}
-      <ProjectExplorer onSelect={selectFile} />
+      {/* 侧边栏 */}
+      {activeTab === 'explorer' && <ProjectExplorer onSelect={selectFile} />}
 
       {/* 右侧：主区域 */}
       <div className="flex-1 flex flex-col">
