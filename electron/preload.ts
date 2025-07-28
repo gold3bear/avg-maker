@@ -42,6 +42,12 @@ contextBridge.exposeInMainWorld('inkAPI', {
   
   // Export functionality
   exportGame: (mode: 'web' | 'desktop') => ipcRenderer.invoke('export-game', mode),
+  
+  // Window controls
+  minimizeWindow: () => ipcRenderer.invoke('minimize-window'),
+  maximizeWindow: () => ipcRenderer.invoke('maximize-window'),
+  closeWindow: () => ipcRenderer.invoke('close-window'),
+  setWindowTitle: (title: string) => ipcRenderer.invoke('set-window-title', title),
 });
 
 // Add type declaration for the exposed API
@@ -57,6 +63,10 @@ declare global {
       compileInk: (source: string, lintOnly?: boolean) => Promise<unknown>;
       loadPlugins: () => Promise<PluginManifest[]>;
       exportGame: (mode: 'web' | 'desktop') => Promise<{ success: boolean; path: string; canceled?: boolean }>;
+      minimizeWindow: () => Promise<void>;
+      maximizeWindow: () => Promise<void>;
+      closeWindow: () => Promise<void>;
+      setWindowTitle: (title: string) => Promise<void>;
     };
   }
 }

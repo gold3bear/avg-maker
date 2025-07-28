@@ -30,6 +30,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined, // macOS 隐藏标题栏但保留traffic lights
+    frame: process.platform !== 'darwin', // 非 macOS 显示窗口框架
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -468,4 +470,34 @@ ipcMain.handle('load-plugins', async () => {
   }
 
   return plugins;
+});
+
+// 窗口控制 IPC 处理程序
+ipcMain.handle('minimize-window', () => {
+  if (mainWindow) {
+    mainWindow.minimize();
+  }
+});
+
+ipcMain.handle('maximize-window', () => {
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow.maximize();
+    }
+  }
+});
+
+ipcMain.handle('close-window', () => {
+  if (mainWindow) {
+    mainWindow.close();
+  }
+});
+
+// 设置窗口标题
+ipcMain.handle('set-window-title', (_, title: string) => {
+  if (mainWindow) {
+    mainWindow.setTitle(title);
+  }
 });

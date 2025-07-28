@@ -8,7 +8,7 @@ interface ActivityBarProps {
   onTabChange?: (tab: SidebarTab) => void;
 }
 
-const tabs: { key: SidebarTab; icon: React.ComponentType<{size?: number}>; title: string }[] = [
+const tabs: { key: SidebarTab; icon: React.ComponentType<{ size?: number }>; title: string }[] = [
   { key: 'explorer', icon: Files, title: 'Explorer' },
   { key: 'search', icon: Search, title: 'Search' },
   { key: 'git', icon: GitBranch, title: 'Git' },
@@ -28,29 +28,31 @@ export const ActivityBar: React.FC<ActivityBarProps> = ({ activeTab, onTabChange
         color: colors.sidebarForeground,
       }}
     >
-      {tabs.map(({ key, icon: Icon, title }) => {
-        const active = key === activeTab;
-        return (
-          <button
-            key={key}
-            title={title}
-            onClick={() => onTabChange && onTabChange(key)}
-            className="p-2 rounded transition-colors"
-            style={{
-              backgroundColor: active ? colors.active : 'transparent',
-              color: active ? colors.textPrimary : colors.textMuted,
-            }}
-            onMouseEnter={(e) => {
-              if (!active) e.currentTarget.style.backgroundColor = colors.hover;
-            }}
-            onMouseLeave={(e) => {
-              if (!active) e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            <Icon size={20} />
-          </button>
-        );
-      })
+      {
+        tabs.length > 0 && tabs.map(({ key, icon: Icon, title }) => {
+          const active = key === activeTab;
+          return (
+            <button
+              key={key}
+              title={title}
+              onClick={() => onTabChange && onTabChange(key)}
+              className="p-2 rounded transition-colors"
+              style={{
+                backgroundColor: active ? colors.active : 'transparent',
+                color: active ? colors.textPrimary : colors.textMuted,
+              }}
+              onMouseEnter={(e) => {
+                if (!active) e.currentTarget.style.backgroundColor = colors.hover;
+              }}
+              onMouseLeave={(e) => {
+                if (!active) e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <Icon size={20} />
+            </button>
+          );
+        })
+      }
     </div>
   );
 };
