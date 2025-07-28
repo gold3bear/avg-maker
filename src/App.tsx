@@ -38,9 +38,9 @@ const AppContent: React.FC = () => {
         {/* 内容区：分栏布局 */}
         <div className="flex flex-1 overflow-hidden">
           {/* 编辑器区域 */}
-          <div 
-            className="w-1/3 h-full"
-            style={{ 
+          <div
+            className="w-2/3 h-full"
+            style={{
               borderRight: `1px solid var(--color-border)`,
               backgroundColor: 'var(--color-editorBackground)',
             }}
@@ -55,8 +55,8 @@ const AppContent: React.FC = () => {
           </div>
 
           {/* 预览 / 节点图 / 插件宿主 */}
-          <div 
-            className="flex-1 relative"
+          <div
+            className="w-1/3 relative"
             style={{ backgroundColor: 'var(--color-surface)' }}
           >
             {pluginCtx ? (
