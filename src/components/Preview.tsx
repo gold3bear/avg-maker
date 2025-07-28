@@ -50,90 +50,17 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
   // 使用正确的API获取当前knot名称
   const getCurrentKnotName = useCallback((story: Story): string => {
     try {
-      console.log('=== Getting Current Knot Name ===');
-      
-      // 方法1: 从callStack获取当前容器路径
-      const callStack = (story as any).state?.callStack;
-      if (callStack?.elements && callStack.elements.length > 0) {
-        // 遍历调用栈，从最新的开始
-        for (let i = callStack.elements.length - 1; i >= 0; i--) {
-          const element = callStack.elements[i];
-          if (element?.currentPointer?.container?.path) {
-            const pathComponents = element.currentPointer.container.path.components;
-            console.log('Path components:', pathComponents);
-            
-            if (pathComponents && pathComponents.length > 0) {
-              // 取第一个路径组件作为knot名称
-              const knotName = pathComponents[0];
-              console.log('✅ Found knot from callStack path:', knotName);
-              return knotName;
-            }
-          }
+      const pathString = (story as any)?.state?.currentPathString;
+      if (pathString) {
+        const first = String(pathString).split('.')[0];
+        if (first && first !== 'DEFAULT_FLOW') {
+          return first;
         }
       }
-      
-      // 方法2: 从当前指针获取容器路径
-      const currentPointer = (story as any).state?.currentPointer;
-      if (currentPointer?.container?.path) {
-        const pathComponents = currentPointer.container.path.components;
-        console.log('Current pointer path components:', pathComponents);
-        
-        if (pathComponents && pathComponents.length > 0) {
-          const knotName = pathComponents[0];
-          console.log('✅ Found knot from current pointer:', knotName);
-          return knotName;
-        }
-      }
-      
-      // 方法3: 从story的根容器获取所有可用knot，然后猜测当前的
-      const rootContainer = (story as any)._mainContentContainer || (story as any).mainContentContainer;
-      if (rootContainer?.namedContent) {
-        const allKnots = Object.keys(rootContainer.namedContent);
-        console.log('All available knots from root:', allKnots);
-        
-        // 过滤出有效的knot（排除系统生成内容）
-        const validKnots = allKnots.filter(name => 
-          name !== 'done' &&
-          name !== 'global decl' &&
-          !name.startsWith('c-') &&
-          !name.startsWith('g-') &&
-          !name.startsWith('_')
-        );
-        
-        console.log('Valid knots found:', validKnots);
-        
-        if (validKnots.length > 0) {
-          // 尝试找到当前正在执行的knot
-          // 通过检查story的状态来判断
-          const currentFlowName = story.currentFlowName;
-          console.log('Current flow name:', currentFlowName);
-          
-          // 如果有历史记录，从选择信息中推断
-          if (story.currentChoices && story.currentChoices.length > 0) {
-            for (const choice of story.currentChoices) {
-              const targetPath = (choice as any).targetPath;
-              if (targetPath && targetPath.components) {
-                const targetKnot = targetPath.components[0];
-                if (validKnots.includes(targetKnot)) {
-                  console.log('✅ Inferring current knot from choice targets:', validKnots[0]);
-                  return validKnots[0]; // 返回第一个有效knot作为当前位置
-                }
-              }
-            }
-          }
-          
-          // 默认返回第一个有效knot（通常是起始位置）
-          console.log('✅ Using first valid knot as default:', validKnots[0]);
-          return validKnots[0];
-        }
-      }
-      
-      console.log('❌ No knot found, returning unknown');
-      return 'unknown';
-      
+      return story.currentFlowName || 'unknown';
     } catch (error) {
-      console.error('获取knot名称失败:', error);
-      return 'error';
+      console.warn('获取当前knot失败:', error);
+      return 'unknown';
     }
   }, []);
   
