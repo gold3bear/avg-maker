@@ -45,19 +45,32 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
   const saveKeyRef = useRef<string>('');
 
   // 存储当前的knot名称(简单的手动跟踪方法)
-  const [currentKnotName, setCurrentKnotName] = useState<string>('unknown');
+  // const [currentKnotName, setCurrentKnotName] = useState<string>('unknown');
   
-  // 使用正确的API获取当前knot名称
-  const getCurrentKnotName = useCallback((story: Story): string => {
+  // 基于currentPathString获取当前knot名称，带有备用策略
+  const getCurrentKnotName = useCallback((story: Story, fallbackKnot?: string): string => {
     try {
-      const pathString = (story as any)?.state?.currentPathString;
+      // currentPathString格式: "knot_name.stitchIndex.lineIndex"
+      // 例如: "greet_maria.0.4" -> knot名称是 "greet_maria"
+      const pathString = story.state.currentPathString;
+      console.log('getCurrentKnotName - pathString:', pathString, 'fallback:', fallbackKnot);
+      
       if (pathString) {
-        const first = String(pathString).split('.')[0];
-        if (first && first !== 'DEFAULT_FLOW') {
-          return first;
+        const knotName = pathString.split('.')[0];
+        console.log('getCurrentKnotName - knotName extracted:', knotName);
+        if (knotName && knotName !== 'DEFAULT_FLOW') {
+          return knotName;
         }
       }
-      return story.currentFlowName || 'unknown';
+      
+      // 如果currentPathString为null，使用备用knot名称
+      if (fallbackKnot && fallbackKnot !== 'DEFAULT_FLOW') {
+        console.log('getCurrentKnotName - using fallback:', fallbackKnot);
+        return fallbackKnot;
+      }
+      
+      console.log('getCurrentKnotName - returning unknown');
+      return 'unknown';
     } catch (error) {
       console.warn('获取当前knot失败:', error);
       return 'unknown';
@@ -67,7 +80,7 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
   // 手动跟踪 knot 变化的函数
   const trackKnotChange = useCallback((newKnotName: string) => {
     console.log('Tracking knot change to:', newKnotName);
-    setCurrentKnotName(newKnotName);
+    // setCurrentKnotName(newKnotName);
   }, []);
 
   // 获取Story变量
@@ -181,7 +194,7 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
       }
       
       // 更新跟踪状态
-      setCurrentKnotName(initialKnotName);
+      // setCurrentKnotName(initialKnotName);
       
       console.log('=== Initial State Update ===');
       console.log('initialKnotName:', initialKnotName);
@@ -293,8 +306,8 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
       const updatedHistory = [...currentHistory, newEntry];
       const newIndex = updatedHistory.length - 1;
       
-      // 获取新的knot名称
-      const newKnotName = getCurrentKnotName(story);
+      // 获取新的knot名称，使用预测的knot作为备用
+      const newKnotName = getCurrentKnotName(story, predictedKnot);
       console.log('=== After Choice State Update ===');
       console.log('newKnotName:', newKnotName);
       
