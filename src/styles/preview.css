@@ -1,0 +1,176 @@
+/* src/styles/preview.css */
+/* Preview组件的自定义样式 */
+
+/* 文本类型样式 */
+.text-dialogue {
+  position: relative;
+  padding-left: 1rem;
+  font-style: italic;
+}
+
+.text-dialogue::before {
+  content: '"';
+  position: absolute;
+  left: 0;
+  font-size: 1.2em;
+  opacity: 0.7;
+}
+
+.text-dialogue::after {
+  content: '"';
+  opacity: 0.7;
+}
+
+.text-system {
+  font-size: 0.9rem;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.text-choice {
+  font-weight: 600;
+}
+
+.text-narration {
+  line-height: 1.6;
+}
+
+/* 选择按钮动画 */
+.choice-button {
+  transform: translateX(0);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.choice-button:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.choice-button:active {
+  transform: translateX(2px) scale(0.98);
+}
+
+/* 历史面板动画 */
+.history-entry {
+  transition: all 0.2s ease;
+}
+
+.history-entry:hover {
+  transform: translateY(-1px);
+}
+
+/* 加载动画 */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 文本淡入动画 */
+.text-fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 按钮脉搏效果 */
+.pulse-ring {
+  position: relative;
+}
+
+.pulse-ring::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  transform: translate(-50%, -50%);
+  animation: pulse 2s infinite;
+  pointer-events: none;
+}
+
+@keyframes pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0;
+  }
+}
+
+/* 滚动条样式 */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--color-secondary);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-textMuted);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .choice-button {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .text-dialogue {
+    padding-left: 0.5rem;
+  }
+}
+
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+  .text-dialogue::before,
+  .text-dialogue::after {
+    opacity: 1;
+  }
+  
+  .choice-button {
+    border-width: 2px;
+  }
+}
+
+/* 减少动画模式 */
+@media (prefers-reduced-motion: reduce) {
+  .choice-button,
+  .history-entry,
+  .text-fade-in {
+    transition: none;
+    animation: none;
+  }
+  
+  .choice-button:hover {
+    transform: none;
+  }
+}
