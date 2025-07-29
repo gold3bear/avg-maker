@@ -38,6 +38,9 @@ export interface ThemeColors {
   toolbarForeground: string;
   toolbarBorder: string;
   
+  // 标题栏
+  titlebar: string;
+  
   // 按钮
   buttonPrimary: string;
   buttonPrimaryHover: string;
@@ -86,6 +89,8 @@ export const darkTheme: ThemeColors = {
   toolbarForeground: '#cccccc',
   toolbarBorder: '#3e3e42',
   
+  titlebar: '#323233',
+  
   buttonPrimary: '#0e639c',
   buttonPrimaryHover: '#1177bb',
   buttonSecondary: '#0e639c',
@@ -130,6 +135,8 @@ export const lightTheme: ThemeColors = {
   toolbarBackground: '#ebebeb',
   toolbarForeground: '#000000',
   toolbarBorder: '#e5e5e5',
+  
+  titlebar: '#dddddd',
   
   buttonPrimary: '#0078d4',
   buttonPrimaryHover: '#106ebe',
@@ -176,6 +183,8 @@ export const githubDarkTheme: ThemeColors = {
   toolbarForeground: '#f0f6fc',
   toolbarBorder: '#30363d',
   
+  titlebar: '#24292f',
+  
   buttonPrimary: '#238636',
   buttonPrimaryHover: '#2ea043',
   buttonSecondary: '#21262d',
@@ -220,6 +229,8 @@ export const monokaiTheme: ThemeColors = {
   toolbarBackground: '#49483e',
   toolbarForeground: '#f8f8f2',
   toolbarBorder: '#75715e',
+  
+  titlebar: '#49483e',
   
   buttonPrimary: '#a6e22e',
   buttonPrimaryHover: '#b8f040',

@@ -433,7 +433,11 @@ export function setupInkThemes(monaco: typeof import('monaco-editor')) {
       'scrollbar.shadow': '#DDDDDD',
       'scrollbarSlider.background': '#C2C2C2',
       'scrollbarSlider.hoverBackground': '#A6A6A6',
-      'scrollbarSlider.activeBackground': '#8C8C8C'
+      'scrollbarSlider.activeBackground': '#8C8C8C',
+      // 简化错误/警告样式 - 只保留波浪线
+      'editorError.background': '#FFFFFF00', // 透明背景
+      'editorWarning.background': '#FFFFFF00', // 透明背景
+      'editorInfo.background': '#FFFFFF00' // 透明背景
     }
   });
 
@@ -472,7 +476,11 @@ export function setupInkThemes(monaco: typeof import('monaco-editor')) {
       'scrollbar.shadow': '#000000',
       'scrollbarSlider.background': '#424242',
       'scrollbarSlider.hoverBackground': '#4F4F4F',
-      'scrollbarSlider.activeBackground': '#646464'
+      'scrollbarSlider.activeBackground': '#646464',
+      // 简化错误/警告样式 - 只保留波浪线
+      'editorError.background': '#1E1E1E00', // 透明背景
+      'editorWarning.background': '#1E1E1E00', // 透明背景
+      'editorInfo.background': '#1E1E1E00' // 透明背景
     }
   });
 
@@ -511,7 +519,11 @@ export function setupInkThemes(monaco: typeof import('monaco-editor')) {
       'scrollbar.shadow': '#000000',
       'scrollbarSlider.background': '#30363D',
       'scrollbarSlider.hoverBackground': '#424A53',
-      'scrollbarSlider.activeBackground': '#545D68'
+      'scrollbarSlider.activeBackground': '#545D68',
+      // 简化错误/警告样式 - 只保留波浪线
+      'editorError.background': '#0D111700', // 透明背景
+      'editorWarning.background': '#0D111700', // 透明背景
+      'editorInfo.background': '#0D111700' // 透明背景
     }
   });
 
@@ -546,11 +558,15 @@ export function setupInkThemes(monaco: typeof import('monaco-editor')) {
       'editorInfo.foreground': '66D9EF',
       'editorError.border': '#F92672',
       'editorWarning.border': 'FD971F',
-      'editorInfo.border': '#66D9EF',
+      'editorInfo.border': '66D9EF',
       'scrollbar.shadow': '#000000',
       'scrollbarSlider.background': '#75715E',
       'scrollbarSlider.hoverBackground': '#90908A',
-      'scrollbarSlider.activeBackground': '#A6A6A6'
+      'scrollbarSlider.activeBackground': '#A6A6A6',
+      // 简化错误/警告样式 - 只保留波浪线
+      'editorError.background': '#27282200', // 透明背景
+      'editorWarning.background': '#27282200', // 透明背景
+      'editorInfo.background': '#27282200' // 透明背景
     }
   });
 }
