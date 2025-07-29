@@ -5,6 +5,7 @@ import ForceGraph2D, { type ForceGraphMethods } from 'react-force-graph-2d';
 import type { GraphNode, GraphLink } from '../utils/storyGraph.ts';
 import { buildStoryGraph } from '../utils/storyGraph.ts';
 import { InkContext } from '../context/InkContext';
+import { useTheme } from '../context/ThemeContext';
 
 interface NodeGraphProps {
   filePath?: string | null;
@@ -18,7 +19,8 @@ export const NodeGraph: React.FC<NodeGraphProps> = ({ filePath }) => {
   const [error, setError] = useState<string | null>(null);
   const { nodes, links } = graph;
   
-  // 使用InkContext的错误报告功能，这样编译错误会自动反映在Editor中
+  // 使用主题和InkContext
+  const { colors } = useTheme();
   const inkContext = useContext(InkContext);
   const { reportCompilationErrors } = inkContext || {};
 
@@ -101,7 +103,13 @@ export const NodeGraph: React.FC<NodeGraphProps> = ({ filePath }) => {
 
   if (!filePath) {
     return (
-      <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500">
+      <div 
+        className="w-full h-full flex items-center justify-center"
+        style={{ 
+          backgroundColor: colors.secondary,
+          color: colors.textMuted 
+        }}
+      >
         请选择一个 Ink 文件以查看节点图
       </div>
     );
@@ -109,7 +117,13 @@ export const NodeGraph: React.FC<NodeGraphProps> = ({ filePath }) => {
 
   if (loading) {
     return (
-      <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500">
+      <div 
+        className="w-full h-full flex items-center justify-center"
+        style={{ 
+          backgroundColor: colors.secondary,
+          color: colors.textMuted 
+        }}
+      >
         正在生成节点图...
       </div>
     );
@@ -117,10 +131,27 @@ export const NodeGraph: React.FC<NodeGraphProps> = ({ filePath }) => {
 
   if (error) {
     return (
-      <div className="w-full h-full bg-gray-200 p-4 overflow-auto">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+      <div 
+        className="w-full h-full p-4 overflow-auto"
+        style={{ backgroundColor: colors.secondary }}
+      >
+        <div 
+          className="px-4 py-3 rounded border"
+          style={{ 
+            backgroundColor: colors.surface,
+            borderColor: colors.error,
+            color: colors.error 
+          }}
+        >
           <h3 className="font-bold mb-2">无法生成节点图</h3>
-          <pre className="whitespace-pre-wrap text-sm font-mono bg-red-200 p-2 rounded border overflow-x-auto">{error}</pre>
+          <pre 
+            className="whitespace-pre-wrap text-sm font-mono p-2 rounded border overflow-x-auto"
+            style={{ 
+              backgroundColor: colors.primary,
+              borderColor: colors.border,
+              color: colors.textPrimary 
+            }}
+          >{error}</pre>
         </div>
       </div>
     );
@@ -128,7 +159,13 @@ export const NodeGraph: React.FC<NodeGraphProps> = ({ filePath }) => {
 
   if (nodes.length === 0) {
     return (
-      <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500">
+      <div 
+        className="w-full h-full flex items-center justify-center"
+        style={{ 
+          backgroundColor: colors.secondary,
+          color: colors.textMuted 
+        }}
+      >
         此文件没有可显示的节点
       </div>
     );
@@ -139,9 +176,20 @@ export const NodeGraph: React.FC<NodeGraphProps> = ({ filePath }) => {
   console.log('NodeGraph: links:', links);
 
   return (
-    <div className="flex-1 h-full bg-gray-200 p-4 overflow-hidden" ref={containerRef}>
+    <div 
+      className="flex-1 h-full p-4 overflow-hidden" 
+      ref={containerRef}
+      style={{ backgroundColor: colors.secondary }}
+    >
       {/* 临时调试信息 */}
-      <div className="absolute top-2 left-2 z-50 bg-black text-white p-2 text-xs rounded">
+      <div 
+        className="absolute top-2 left-2 z-50 p-2 text-xs rounded"
+        style={{ 
+          backgroundColor: colors.surface,
+          color: colors.textPrimary,
+          border: `1px solid ${colors.border}` 
+        }}
+      >
         节点: {nodes.length} | 连线: {links.length}
       </div>
       
@@ -156,9 +204,10 @@ export const NodeGraph: React.FC<NodeGraphProps> = ({ filePath }) => {
           linkLabel="label"
           linkDirectionalArrowLength={6}
           linkDirectionalArrowRelPos={1}
-          linkDirectionalArrowColor={() => '#888'}
+          linkDirectionalArrowColor={() => colors.textMuted}
           linkDirectionalParticles={2}
           linkDirectionalParticleSpeed={0.005}
+          backgroundColor={colors.secondary}
           width={window.innerWidth * 0.6} // 使用窗口宽度的60%
           height={window.innerHeight}
         />

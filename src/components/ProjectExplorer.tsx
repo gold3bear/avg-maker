@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
 import { ProjectContext } from '../context/ProjectContext';
+import { useSave } from '../context/SaveContext';
 
 /**
  * 文件节点类型
@@ -21,6 +22,7 @@ interface ProjectExplorerProps {
  */
 export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelect }) => {
   const projectContext = useContext(ProjectContext);
+  const { getFileStatus } = useSave();
   
   if (!projectContext) {
     throw new Error('ProjectExplorer must be used within ProjectProvider');
@@ -42,7 +44,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelect }) =>
             </div>
           ) : (
             <button
-              className="text-left px-2 py-1 rounded w-full text-sm transition-colors"
+              className="text-left px-2 py-1 rounded w-full text-sm transition-colors flex items-center justify-between"
               style={{ 
                 color: 'var(--color-textPrimary)',
                 backgroundColor: 'transparent'
@@ -55,7 +57,13 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelect }) =>
               }}
               onClick={() => onSelect(node.path)}
             >
-              📄 {node.name}
+              <span>📄 {node.name}</span>
+              {getFileStatus(node.path)?.isDirty && (
+                <div 
+                  className="w-2 h-2 bg-orange-500 rounded-full ml-1" 
+                  title="未保存的更改"
+                />
+              )}
             </button>
           )}
           {node.isDirectory && node.children && renderTree(node.children)}
