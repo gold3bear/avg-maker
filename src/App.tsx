@@ -17,6 +17,9 @@ import { CrashRecoveryModal } from './components/CrashRecoveryModal';
 import { crashRecovery } from './utils/crashRecovery';
 import { setupTestingUtils } from './utils/testingUtils';
 import { useWorkspaceState } from './hooks/useWorkspaceState';
+import { appStartupManager } from './utils/AppStartupManager';
+import { WelcomeScreen } from './components/WelcomeScreen';
+import { LicenseNotice } from './components/LicenseNotice';
 import type { SidebarTab } from './types/sidebar';
 
 const AppContent: React.FC = () => {
@@ -29,6 +32,12 @@ const AppContent: React.FC = () => {
     manifest: any;
     params?: any;
   } | null>(null);
+  
+  // 应用启动状态
+  const [appMode, setAppMode] = useState<'loading' | 'welcome' | 'normal' | 'crash-recovery'>('loading');
+  
+  // 许可证接受状态
+  const [licenseAccepted, setLicenseAccepted] = useState(false);
   
   // 崩溃恢复状态
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
@@ -106,6 +115,12 @@ const AppContent: React.FC = () => {
   // 防止页面刷新导致数据丢失
   React.useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // 检查是否被测试工具标记禁止自动保存
+      if ((window as any).__PREVENT_AUTO_SAVE__) {
+        console.log('🧪 App: 测试工具禁止自动保存，跳过beforeunload保存');
+        return;
+      }
+      
       console.log('🔄 App: beforeunload 事件触发，保存状态');
       
       // 使用ref中的最新状态，避免使用可能被重置的React状态
@@ -389,6 +404,14 @@ const AppContent: React.FC = () => {
     };
   }, []); // 空依赖数组，只注册一次
 
+  // 检查许可证接受状态
+  React.useEffect(() => {
+    const accepted = localStorage.getItem('avg-master-license-accepted');
+    if (accepted === 'true') {
+      setLicenseAccepted(true);
+    }
+  }, []);
+
   // 页面加载时检查崩溃恢复
   React.useEffect(() => {
     // 设置开发测试工具
@@ -407,6 +430,29 @@ const AppContent: React.FC = () => {
       // 立即标记已经尝试过恢复，防止重复执行
       hasAttemptedRecoveryRef.current = true;
       console.log('🔄 App: 已设置 hasAttemptedRecoveryRef.current = true');
+      
+      // 使用启动管理器检查启动模式
+      const startupResult = appStartupManager.checkStartupMode();
+      console.log('🚀 App: 启动模式检测结果:', startupResult);
+      
+      // 根据启动模式设置应用状态
+      if (startupResult.mode === 'welcome') {
+        console.log('👋 App: 进入欢迎页面模式');
+        setAppMode('welcome');
+        isRecoveryCompleteRef.current = true; // 欢迎模式下标记恢复完成
+        return;
+      }
+      
+      if (startupResult.mode === 'crash-recovery') {
+        console.log('💥 App: 进入崩溃恢复模式');
+        setAppMode('crash-recovery');
+        setShowRecoveryModal(true);
+        setRecoveryData(startupResult.recoveryData);
+        return;
+      }
+      
+      // 继续现有的恢复逻辑（用于restore-session模式）
+      console.log('🔄 App: 继续会话恢复逻辑');
       
       // 首先检查所有可能的存储位置
       const sessionData = sessionStorage.getItem('avg-master-state');
@@ -658,10 +704,14 @@ const AppContent: React.FC = () => {
         
         console.log('✅ 静默恢复完成');
         isRecoveryCompleteRef.current = true;
+        setAppMode('normal');
       } else {
         console.log('🔄 App: 没有找到需要恢复的数据');
         isRecoveryCompleteRef.current = true; // 即使没有数据恢复也标记完成
       }
+      
+      // 完成恢复后设置为正常模式
+      setAppMode('normal');
     };
 
     // 延迟检查，确保组件完全加载
@@ -675,6 +725,12 @@ const AppContent: React.FC = () => {
   // 定期保存状态用于崩溃恢复
   React.useEffect(() => {
     const saveState = () => {
+      // 检查是否被测试工具标记禁止自动保存
+      if ((window as any).__PREVENT_AUTO_SAVE__) {
+        console.log('🧪 App: 测试工具禁止自动保存，跳过定期保存');
+        return;
+      }
+      
       // 如果恢复还没完成，不要保存空状态覆盖正确数据
       if (!isRecoveryCompleteRef.current) {
         console.log('⏸️ App: 恢复未完成，跳过定期保存避免覆盖正确数据');
@@ -763,6 +819,7 @@ const AppContent: React.FC = () => {
 
       setShowRecoveryModal(false);
       crashRecovery.clearRecoveryData();
+      setAppMode('normal');
       
       console.log('✅ 崩溃恢复完成');
     } catch (error) {
@@ -773,11 +830,40 @@ const AppContent: React.FC = () => {
   const handleRecoveryDismiss = () => {
     setShowRecoveryModal(false);
     crashRecovery.clearRecoveryData();
+    setAppMode('normal');
   };
 
+  // 欢迎页面事件处理
+  const handleWelcomeCreateProject = () => {
+    console.log('🆕 App: 创建新项目');
+    appStartupManager.handleWelcomeComplete();
+    setAppMode('normal');
+    // 这里可以调用实际的创建项目逻辑
+    // 暂时跳过，用户可以通过工具栏创建
+  };
+
+  const handleWelcomeOpenProject = (projectPath?: string) => {
+    console.log('📂 App: 打开项目', projectPath);
+    appStartupManager.handleWelcomeComplete();
+    setAppMode('normal');
+    
+    if (projectPath) {
+      // 打开指定的项目路径
+      loadProjectPath(projectPath);
+    } else {
+      // 打开项目选择对话框
+      openProject();
+    }
+  };
+
+  const handleWelcomeSkip = () => {
+    console.log('⏭️ App: 跳过欢迎页面');
+    appStartupManager.handleWelcomeComplete();
+    setAppMode('normal');
+  };
 
   const getWindowTitle = () => {
-    const defaultTitle = 'AVG Master';
+    const defaultTitle = 'AVG Maker';
     
     // 如果没有项目路径，返回默认标题
     if (!projectPath) {
@@ -812,14 +898,36 @@ const AppContent: React.FC = () => {
 
       {/* 主内容区域 */}
       <div className="flex-1 flex overflow-hidden">
-        {/* 左侧：活动栏 */}
-        {sidebarVisible && <ActivityBar activeTab={activeTab} onTabChange={setActiveTab} />}
+        {/* 加载状态 */}
+        {appMode === 'loading' && (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600 dark:text-gray-400">正在启动应用...</p>
+            </div>
+          </div>
+        )}
 
-        {/* 侧边栏 */}
-        {sidebarVisible && activeTab === 'explorer' && <ProjectExplorer onSelect={selectFile} />}
+        {/* 欢迎页面 */}
+        {appMode === 'welcome' && (
+          <WelcomeScreen
+            onCreateProject={handleWelcomeCreateProject}
+            onOpenProject={handleWelcomeOpenProject}
+            onSkip={handleWelcomeSkip}
+          />
+        )}
 
-        {/* 右侧：主区域 */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        {/* 正常模式和崩溃恢复模式 */}
+        {(appMode === 'normal' || appMode === 'crash-recovery') && (
+          <>
+            {/* 左侧：活动栏 */}
+            {sidebarVisible && <ActivityBar activeTab={activeTab} onTabChange={setActiveTab} />}
+
+            {/* 侧边栏 */}
+            {sidebarVisible && activeTab === 'explorer' && <ProjectExplorer onSelect={selectFile} />}
+
+            {/* 右侧：主区域 */}
+            <div className="flex-1 flex flex-col overflow-hidden">
           {/* 顶部工具栏 */}
           <Toolbar
             view={view}
@@ -866,7 +974,9 @@ const AppContent: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* 底部：状态栏 */}
@@ -889,6 +999,13 @@ const AppContent: React.FC = () => {
           {/* 如果系统对话框失败，这里可以显示自定义对话框作为降级方案 */}
           {/* 暂时隐藏，因为我们主要使用系统对话框 */}
         </div>
+      )}
+
+      {/* 许可证接受模态框 */}
+      {!licenseAccepted && (
+        <LicenseNotice 
+          onAccept={() => setLicenseAccepted(true)} 
+        />
       )}
     </div>
   );

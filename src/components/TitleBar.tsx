@@ -10,7 +10,7 @@ interface TitleBarProps {
 }
 
 export const TitleBar: React.FC<TitleBarProps> = ({
-  title = 'AVG Master',
+  title = 'AVG Maker',
   onToggleSidebar,
   sidebarVisible = true,
 }) => {
