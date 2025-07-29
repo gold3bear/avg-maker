@@ -9,10 +9,11 @@ import { Editor } from './components/Editor';
 import { Preview } from './components/Preview';
 import { NodeGraph } from './components/NodeGraph';
 import { PluginHost } from './components/PluginHost';
+import AIChatPanel from './components/ai/AIChatPanel';
 import type { SidebarTab } from './types/sidebar';
 
 const AppContent: React.FC = () => {
-  const { plugins, activeFile, selectFile, openProject } = useContext(ProjectContext)!;
+  const { plugins, activeFile, selectFile, openProject, projectPath } = useContext(ProjectContext)!;
   const [view, setView] = useState<'preview' | 'graph'>('preview');
   const [activeTab, setActiveTab] = useState<SidebarTab>('explorer');
   const [pluginCtx, setPluginCtx] = useState<{
@@ -30,6 +31,14 @@ const AppContent: React.FC = () => {
 
       {/* 侧边栏 */}
       {activeTab === 'explorer' && <ProjectExplorer onSelect={selectFile} />}
+      {activeTab === 'bot' && (
+        <AIChatPanel
+          projectContext={{
+            currentFile: activeFile,
+            projectName: projectPath ? projectPath.split(/[/\\]/).pop() : '',
+          }}
+        />
+      )}
 
       {/* 右侧：主区域 */}
       <div className="flex-1 flex flex-col">

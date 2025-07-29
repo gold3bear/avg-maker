@@ -157,6 +157,14 @@ npm run lint
 
 ---
 
+## 🤖 AI 对话模块
+
+* 左侧 ActivityBar 新增 **Bot** 选项，点击后在侧边栏打开 AI 聊天面板
+* 面板顶部可填写自定义 API 地址，发送消息时将以 `{ message, context }` POST 请求
+* 未填写时默认回显输入内容，可用于离线体验
+
+---
+
 ## 📚 参考链接
 
 * [inkjs](https://github.com/y-lohse/inkjs)：Ink 运行时
