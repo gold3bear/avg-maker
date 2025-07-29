@@ -2,21 +2,6 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 
-export interface PluginManifest {
-  id: string;
-  name: string;
-  version: string;
-  description?: string;
-  main: string;
-}
-
-export interface FileNode {
-  name: string;
-  path: string;
-  isDirectory: boolean;
-  children?: FileNode[];
-}
-
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('inkAPI', {
@@ -48,28 +33,37 @@ contextBridge.exposeInMainWorld('inkAPI', {
   maximizeWindow: () => ipcRenderer.invoke('maximize-window'),
   closeWindow: () => ipcRenderer.invoke('close-window'),
   setWindowTitle: (title: string) => ipcRenderer.invoke('set-window-title', title),
+  
+  // Window lifecycle
+  onAppWillClose: (callback: () => void) => {
+    console.log('🚪 Preload: 注册 app-will-close 监听器');
+    // 同时发送到主进程确保能看到日志
+    ipcRenderer.invoke('log-to-main', '🚪 Preload: 注册 app-will-close 监听器');
+    ipcRenderer.on('app-will-close', () => {
+      console.log('🚪 Preload: 收到 app-will-close 事件');
+      ipcRenderer.invoke('log-to-main', '🚪 Preload: 收到 app-will-close 事件');
+      callback();
+    });
+  },
+  removeAppWillCloseListener: (callback: () => void) => {
+    console.log('🚪 Preload: 移除 app-will-close 监听器');
+    ipcRenderer.removeAllListeners('app-will-close');
+  },
+  confirmClose: () => {
+    console.log('🚪 Preload: confirmClose 被调用');
+    console.trace('🚪 Preload: confirmClose 调用栈');
+    return ipcRenderer.invoke('confirm-close');
+  },
+  cancelClose: () => ipcRenderer.invoke('cancel-close'),
+  
+  // System dialogs
+  showSaveDialog: (unsavedFiles: string[]) => ipcRenderer.invoke('show-save-dialog', unsavedFiles),
+  
+  // Debug logging
+  logToMain: (message: string) => ipcRenderer.invoke('log-to-main', message),
 });
 
-// Add type declaration for the exposed API
-declare global {
-  interface Window {
-    inkAPI: {
-      openProject: () => Promise<string | null>;
-      readFile: (filePath: string) => Promise<string>;
-      writeFile: (filePath: string, content: string) => Promise<boolean>;
-      readDir: (dirPath: string) => Promise<FileNode[]>;
-      watchFiles: (paths: string[]) => Promise<boolean>;
-      onFileChanged: (callback: (filePath: string) => void) => void;
-      compileInk: (source: string, lintOnly?: boolean) => Promise<unknown>;
-      loadPlugins: () => Promise<PluginManifest[]>;
-      exportGame: (mode: 'web' | 'desktop') => Promise<{ success: boolean; path: string; canceled?: boolean }>;
-      minimizeWindow: () => Promise<void>;
-      maximizeWindow: () => Promise<void>;
-      closeWindow: () => Promise<void>;
-      setWindowTitle: (title: string) => Promise<void>;
-    };
-  }
-}
+// Type declarations are now in src/types/global.d.ts
 
 // 创建React DevTools hook - 必须在React加载前创建
 (() => {

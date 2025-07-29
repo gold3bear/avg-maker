@@ -153,7 +153,7 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
       const json = await window.inkAPI.compileInk(source, false, filePath);
       
       // 2. 创建Story实例
-      const s = new Story(json);
+      const s = new Story(json as any);
       storyRef.current = s;
       
       // 3. 绑定外部函数
@@ -307,7 +307,7 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
       const newIndex = updatedHistory.length - 1;
       
       // 获取新的knot名称，使用预测的knot作为备用
-      const newKnotName = getCurrentKnotName(story, predictedKnot);
+      const newKnotName = getCurrentKnotName(story, predictedKnot || undefined);
       console.log('=== After Choice State Update ===');
       console.log('newKnotName:', newKnotName);
       

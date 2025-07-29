@@ -1,5 +1,7 @@
+/// <reference path="../types/global.d.ts" />
 import React, { useEffect, useState } from 'react';
 import { Minus, Square, X, Sidebar, Layers, Search } from 'lucide-react';
+import { useSave } from '../context/SaveContext';
 
 interface TitleBarProps {
   title?: string;
@@ -14,7 +16,8 @@ export const TitleBar: React.FC<TitleBarProps> = ({
 }) => {
   const platform = navigator.platform.toLowerCase();
   const isMacOS = platform.includes('mac');
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [, setIsFullscreen] = useState(false);
+  const { hasUnsavedChanges, getUnsavedFiles } = useSave();
 
   // 同步窗口标题
   useEffect(() => {
@@ -48,7 +51,13 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   };
 
   const handleClose = () => {
-    window.inkAPI?.closeWindow?.();
+    console.log('🔴 TitleBar: 关闭按钮被点击');
+    if (window.inkAPI?.closeWindow) {
+      console.log('🔴 TitleBar: 调用closeWindow API');
+      window.inkAPI.closeWindow();
+    } else {
+      console.error('🔴 TitleBar: closeWindow API不可用');
+    }
   };
 
   return (
@@ -69,13 +78,27 @@ export const TitleBar: React.FC<TitleBarProps> = ({
       {!isMacOS && <div className="w-3" />}
 
       {/* 中间：标题 */}
-      <div className="flex-1 flex justify-center">
+      <div className="flex-1 flex justify-center items-center space-x-2">
         <span
           className="text-sm font-medium"
           style={{ color: 'var(--color-text)' }}
         >
           {title}
         </span>
+        {hasUnsavedChanges() && (
+          <div className="flex items-center space-x-1">
+            <div 
+              className="w-2 h-2 bg-orange-500 rounded-full" 
+              title={`${getUnsavedFiles().length} 个文件有未保存的更改`}
+            />
+            <span 
+              className="text-xs"
+              style={{ color: 'var(--color-textMuted)' }}
+            >
+              未保存
+            </span>
+          </div>
+        )}
       </div>
 
       {/* 右侧：控制按钮 */}

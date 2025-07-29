@@ -41,6 +41,22 @@ function createWindow() {
     },
   });
 
+  // 禁用刷新快捷键，防止意外数据丢失
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    // 禁用 Cmd+R (macOS) 和 Ctrl+R (Windows/Linux)
+    if ((input.meta && input.key === 'r') || (input.control && input.key === 'r')) {
+      event.preventDefault();
+    }
+    // 禁用 F5
+    if (input.key === 'F5') {
+      event.preventDefault();
+    }
+    // 禁用 Cmd+Shift+R (macOS) 和 Ctrl+Shift+R (Windows/Linux) - 强制刷新
+    if ((input.meta && input.shift && input.key === 'R') || (input.control && input.shift && input.key === 'R')) {
+      event.preventDefault();
+    }
+  });
+
   if (app.isPackaged) {
     // 生产环境加载打包后的静态文件
     mainWindow.loadFile(join(__dirname, '../../public/index.html'));
@@ -136,6 +152,106 @@ function createWindow() {
     });
   }
 
+  // 处理窗口关闭事件
+  let isQuitting = false;
+  let isHandlingClose = false; // 防止重复处理关闭事件
+  
+  mainWindow.on('close', (event) => {
+    console.log('🚪 Main: 窗口关闭事件触发, isQuitting =', isQuitting, ', isHandlingClose =', isHandlingClose);
+    
+    if (isQuitting) {
+      console.log('🚪 Main: 已确认关闭，允许关闭');
+      return; // 已经确认关闭，允许关闭
+    }
+    
+    if (isHandlingClose) {
+      console.log('🚪 Main: 已经在处理关闭事件，阻止重复处理');
+      event.preventDefault();
+      return;
+    }
+    
+    console.log('🚪 Main: 阻止默认关闭，通知渲染进程检查未保存文件...');
+    isHandlingClose = true;
+    
+    // 阻止默认关闭行为
+    event.preventDefault();
+    
+    // 通知渲染进程检查未保存的文件
+    try {
+      console.log('🚪 Main: 发送app-will-close事件到渲染进程');
+      mainWindow?.webContents.send('app-will-close');
+    } catch (error) {
+      console.log('🚪 Main: 发送关闭通知失败:', error);
+      // 如果发送失败，直接关闭
+      isHandlingClose = false;
+      isQuitting = true;
+      mainWindow?.close();
+    }
+  });
+
+  // 添加 IPC 处理程序，允许渲染进程确认关闭
+  ipcMain.handle('confirm-close', () => {
+    console.log('🚪 Main: 渲染进程确认关闭窗口');
+    isHandlingClose = false; // 重置处理状态
+    isQuitting = true;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      console.log('🚪 Main: 直接销毁窗口避免重复关闭事件');
+      mainWindow.destroy(); // 使用 destroy() 而不是 close() 避免触发关闭事件
+    }
+  });
+
+  // 添加 IPC 处理程序，允许渲染进程取消关闭
+  ipcMain.handle('cancel-close', () => {
+    console.log('🚪 Main: 渲染进程取消关闭窗口');
+    isHandlingClose = false; // 重置处理状态
+    isQuitting = false; // 确保不会意外关闭
+  });
+
+  // 防止重复显示保存对话框
+  let isShowingDialog = false;
+
+  // 显示系统级别的保存确认对话框
+  ipcMain.handle('show-save-dialog', async (_, unsavedFiles: string[]) => {
+    if (!mainWindow) {
+      console.log('🚪 Main: mainWindow不存在，无法显示对话框');
+      return null;
+    }
+
+    if (isShowingDialog) {
+      console.log('🚪 Main: 已经在显示对话框，忽略重复请求');
+      return null;
+    }
+
+    console.log('🚪 Main: 显示保存确认对话框，文件数量:', unsavedFiles.length);
+    isShowingDialog = true;
+
+    try {
+      const fileList = unsavedFiles.map(file => `• ${file.split('/').pop()}`).join('\n');
+      const message = `你有未保存的更改：\n\n${fileList}\n\n你想要保存这些更改吗？`;
+
+      const result = await dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        buttons: ['保存', '不保存', '取消'],
+        defaultId: 0,
+        cancelId: 2,
+        message: '你有未保存的更改',
+        detail: message,
+        icon: undefined // 使用系统默认图标
+      });
+
+      console.log('🚪 Main: 系统对话框结果:', result);
+      console.log('🚪 Main: 即将返回给渲染进程的值:', result.response);
+
+      // 返回用户选择: 0=保存, 1=不保存, 2=取消
+      return result.response;
+    } catch (error) {
+      console.error('🚪 Main: 显示对话框时出错:', error);
+      return null;
+    } finally {
+      isShowingDialog = false;
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -163,10 +279,9 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  // macOS 上除非用户显式 Cmd+Q 才退出
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  // 当所有窗口关闭时，退出应用（在所有平台上）
+  console.log('🚪 Main: 所有窗口已关闭，退出应用');
+  app.quit();
 });
 
 app.on('activate', () => {
@@ -490,8 +605,12 @@ ipcMain.handle('maximize-window', () => {
 });
 
 ipcMain.handle('close-window', () => {
+  console.log('🔴 Main: 收到关闭窗口请求');
   if (mainWindow) {
+    console.log('🔴 Main: 调用mainWindow.close()');
     mainWindow.close();
+  } else {
+    console.error('🔴 Main: mainWindow不存在');
   }
 });
 
@@ -500,4 +619,9 @@ ipcMain.handle('set-window-title', (_, title: string) => {
   if (mainWindow) {
     mainWindow.setTitle(title);
   }
+});
+
+// 渲染进程日志转发
+ipcMain.handle('log-to-main', (_, message: string) => {
+  console.log('[Renderer]', message);
 });

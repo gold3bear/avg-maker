@@ -27,7 +27,7 @@ export interface ProjectContextValue {
   openProject: () => Promise<void>;
   readDir: (dirPath: string) => Promise<FileNode[]>;
   readFile: (filePath: string) => Promise<string>;
-  writeFile: (filePath: string, content: string) => Promise<void>;
+  writeFile: (filePath: string, content: string) => Promise<boolean>;
   watchFiles: (paths: string[]) => void;
   onFileChanged: (callback: (changedPath: string) => void) => void;
   selectFile: (filePath: string) => void;
