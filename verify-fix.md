@@ -13,7 +13,7 @@
 - 但VS Code风格恢复完成后会直接return，跳过主崩溃恢复逻辑 ❌
 
 从日志分析：
-- **崩溃前：** `activeFile: '/Users/xmly/project/avg_master/story/temp.ink'` 保存在主系统
+- **崩溃前：** `activeFile: '/Users/.../project/avg_master/story/temp.ink'` 保存在主系统
 - **崩溃后：** VS Code风格恢复没找到activeFile，但直接标记恢复完成，跳过了主系统恢复
 
 ## 最终修复内容
@@ -75,7 +75,7 @@ if (!states.editor || !states.editor.activeFile) {
 **修复后日志：**
 ```
 📝 VS Code风格恢复没有找到activeFile，继续检查主崩溃恢复数据
-🔄 静默恢复当前打开的文件: /Users/xmly/project/avg_master/story/temp.ink
+🔄 静默恢复当前打开的文件: /Users/.../project/avg_master/story/temp.ink
 ✅ 静默恢复完成
 ```
 
