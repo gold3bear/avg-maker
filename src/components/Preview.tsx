@@ -89,7 +89,10 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
       const variables: Record<string, any> = {};
       const globalVars = (story as any).variablesState;
       if (globalVars && globalVars._globalVariables) {
-        for (const [key, value] of globalVars._globalVariables) {
+        const iterable = typeof globalVars._globalVariables.entries === 'function'
+          ? Array.from(globalVars._globalVariables.entries())
+          : Object.entries(globalVars._globalVariables as Record<string, any>);
+        for (const [key, value] of iterable) {
           variables[key] = value;
         }
       }
