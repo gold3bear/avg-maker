@@ -32,6 +32,8 @@ function createWindow() {
     height: 800,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined, // macOS 隐藏标题栏但保留traffic lights
     frame: process.platform !== 'darwin', // 非 macOS 显示窗口框架
+    backgroundColor: '#1e1e1e', // 设置窗口背景色为深色，避免白屏闪烁
+    show: false, // 初始不显示窗口，等待ready-to-show事件
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -54,6 +56,32 @@ function createWindow() {
     // 禁用 Cmd+Shift+R (macOS) 和 Ctrl+Shift+R (Windows/Linux) - 强制刷新
     if ((input.meta && input.shift && input.key === 'R') || (input.control && input.shift && input.key === 'R')) {
       event.preventDefault();
+    }
+  });
+
+  // 监听ready-to-show事件，在页面准备好后再显示窗口
+  mainWindow.once('ready-to-show', () => {
+    console.log('🚪 Main: 窗口准备完成，显示窗口');
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      // 可选：添加淡入效果（仅macOS）
+      if (process.platform === 'darwin') {
+        mainWindow.setOpacity(0);
+        mainWindow.show();
+        // 快速淡入动画
+        let opacity = 0;
+        const fadeIn = setInterval(() => {
+          opacity += 0.05; // 稍微慢一点的淡入
+          if (opacity >= 1) {
+            mainWindow?.setOpacity(1);
+            clearInterval(fadeIn);
+          } else {
+            mainWindow?.setOpacity(opacity);
+          }
+        }, 16); // ~60fps
+      } else {
+        // 其他平台直接显示
+        mainWindow.show();
+      }
     }
   });
 
@@ -268,7 +296,7 @@ app.whenReady().then(async () => {
       console.log('✅ React DevTools installed:', extensionInfo.name, 'v' + extensionInfo.version);
       
       // 等待一小段时间确保扩展完全加载
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // await new Promise(resolve => setTimeout(resolve, 500));
     } catch (e) {
       console.error('❌ Failed to install React DevTools:', e);
       console.log('🔄 Continuing without React DevTools...');
@@ -299,6 +327,23 @@ ipcMain.handle('open-project', async () => {
     properties: ['openDirectory']
   });
   return filePaths[0] || null;
+});
+
+// 直接加载指定路径的项目（用于恢复）
+ipcMain.handle('load-project-path', async (_, projectPath: string) => {
+  try {
+    // 检查路径是否存在且是目录
+    const stat = fs.statSync(projectPath);
+    if (!stat.isDirectory()) {
+      console.error('❌ 指定路径不是目录:', projectPath);
+      return null;
+    }
+    console.log('✅ 直接加载项目路径:', projectPath);
+    return projectPath;
+  } catch (error) {
+    console.error('❌ 加载项目路径失败:', error);
+    return null;
+  }
 });
 
 // 读取指定文件内容

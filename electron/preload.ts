@@ -7,6 +7,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld('inkAPI', {
   // Project management
   openProject: () => ipcRenderer.invoke('open-project'),
+  loadProjectPath: (projectPath: string) => ipcRenderer.invoke('load-project-path', projectPath),
   
   // File operations
   readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),

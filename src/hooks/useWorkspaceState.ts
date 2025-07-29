@@ -85,9 +85,31 @@ export const useWorkspaceState = ({
     const editorState = crashRecovery.restoreEditorState();
     const uiState = crashRecovery.restoreUIState();
     
+    // 如果编辑器状态为空或没有activeFile，尝试从主崩溃恢复数据获取
+    let finalEditorState = editorState;
+    if (!editorState || !editorState.activeFile) {
+      console.log('🔄 编辑器状态为空或无activeFile，尝试从主崩溃恢复数据获取');
+      console.log('🔄 原始编辑器状态:', editorState);
+      const mainRecovery = crashRecovery.checkForCrashRecovery();
+      console.log('🔄 主崩溃恢复数据:', mainRecovery);
+      if (mainRecovery.hasRecovery && mainRecovery.appState && mainRecovery.appState.activeFile) {
+        console.log('🔄 从主崩溃恢复数据中找到activeFile:', mainRecovery.appState.activeFile);
+        finalEditorState = {
+          activeFile: mainRecovery.appState.activeFile,
+          openFiles: [mainRecovery.appState.activeFile],
+          fileStates: {}
+        };
+        console.log('🔄 构建的finalEditorState:', finalEditorState);
+      } else {
+        console.log('🔄 主崩溃恢复数据中没有找到activeFile');
+      }
+    } else {
+      console.log('🔄 使用原有编辑器状态:', editorState);
+    }
+    
     return {
       workspace: workspaceState,
-      editor: editorState,
+      editor: finalEditorState,
       ui: uiState
     };
   }, []);

@@ -61,6 +61,8 @@ class CrashRecovery {
   
   constructor() {
     this.sessionId = this.generateSessionId();
+    // 立即保存当前会话ID，确保崩溃检测能正常工作
+    localStorage.setItem(SESSION_ID_KEY, this.sessionId);
     this.startPeriodicBackup();
     this.startStateBackup();
   }
@@ -79,7 +81,11 @@ class CrashRecovery {
       };
       
       localStorage.setItem(RECOVERY_KEY, JSON.stringify(fullState));
-      console.log('✅ App state saved for crash recovery');
+      console.log('✅ App state saved for crash recovery:', {
+        projectPath: fullState.projectPath,
+        activeFile: fullState.activeFile,
+        sessionId: fullState.sessionId
+      });
     } catch (error) {
       console.warn('Failed to save app state for recovery:', error);
     }
@@ -146,13 +152,33 @@ class CrashRecovery {
         return { hasRecovery: false };
       }
       
-      // 检测是否为崩溃恢复（不同的会话ID且有未清理的数据）
-      const crashDetected = lastSessionId && 
-                           lastSessionId !== this.sessionId && 
-                           (appState.projectPath || appState.activeFile || Object.keys(fileBackups).length > 0);
+      // 检测是否为崩溃恢复
+      // 如果有保存的状态且满足以下条件之一，则认为是崩溃恢复：
+      // 1. 上次会话ID存在且与当前不同，且有数据需要恢复
+      // 2. 没有上次会话ID但有状态数据（可能是首次启动后的崩溃）
+      const hasDataToRecover = appState.projectPath || appState.activeFile || Object.keys(fileBackups).length > 0;
+      const crashDetected = hasDataToRecover && (
+        (lastSessionId && lastSessionId !== this.sessionId) ||  // 有旧会话且不同
+        (!lastSessionId && appState.sessionId !== this.sessionId)  // 无旧会话但状态中的会话ID不同
+      );
       
       // 更新当前会话ID
       localStorage.setItem(SESSION_ID_KEY, this.sessionId);
+      
+      console.log('🔍 崩溃恢复检测结果:', {
+        hasRecovery: true,
+        crashDetected: !!crashDetected,
+        hasProjectPath: !!appState.projectPath,
+        hasActiveFile: !!appState.activeFile,
+        activeFile: appState.activeFile,
+        projectPath: appState.projectPath,
+        lastSessionId,
+        currentSessionId: this.sessionId,
+        appStateSessionId: appState.sessionId,
+        hasDataToRecover,
+        condition1: lastSessionId && lastSessionId !== this.sessionId,
+        condition2: !lastSessionId && appState.sessionId !== this.sessionId
+      });
       
       return {
         hasRecovery: true,
@@ -270,6 +296,9 @@ class CrashRecovery {
         url: window.location.href,
         userAgent: navigator.userAgent
       };
+
+      // 确保会话ID始终是最新的
+      localStorage.setItem(SESSION_ID_KEY, this.sessionId);
 
       // 使用多种存储方式确保可靠性
       localStorage.setItem('avg-master-state-snapshot', JSON.stringify(stateSnapshot));
@@ -414,8 +443,9 @@ class CrashRecovery {
         timestamp: new Date(data.timestamp).toLocaleString()
       });
       
-      // 如果状态是在最近保存的（5分钟内），且session ID不同，说明可能是刷新后的新会话
-      const recentlySaved = (now - data.timestamp) < 5 * 60 * 1000;
+      // 如果状态是在最近保存的（4小时内），且session ID不同，说明可能是刷新后的新会话
+      // 开发环境下可能会有长时间的调试间隔
+      const recentlySaved = (now - data.timestamp) < 4 * 60 * 60 * 1000;
       const differentSession = data.sessionId !== this.sessionId;
       
       console.log('🔍 恢复检测: 判断结果', {

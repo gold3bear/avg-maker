@@ -34,6 +34,7 @@ declare global {
     inkAPI: {
       // Project management
       openProject: () => Promise<string | null>;
+      loadProjectPath: (projectPath: string) => Promise<string | null>;
       
       // File operations
       readFile: (filePath: string) => Promise<string>;

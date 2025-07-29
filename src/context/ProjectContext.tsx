@@ -25,6 +25,7 @@ export interface ProjectContextValue {
   activeFile: string | null;
 
   openProject: () => Promise<void>;
+  loadProjectPath: (projectPath: string) => Promise<boolean>;
   readDir: (dirPath: string) => Promise<FileNode[]>;
   readFile: (filePath: string) => Promise<string>;
   writeFile: (filePath: string, content: string) => Promise<boolean>;
@@ -63,6 +64,31 @@ export const ProjectProvider: React.FC<React.PropsWithChildren<{}>> = ({ childre
     }
   }, []);
 
+  // 直接加载指定路径的项目（用于恢复）
+  const loadProjectPath = useCallback(async (projectPath: string): Promise<boolean> => {
+    try {
+      const dir = await window.inkAPI.loadProjectPath(projectPath);
+      if (dir) {
+        console.log('🔄 ProjectContext: 加载项目路径成功:', dir);
+        setProjectPath(dir);
+        const nodes = await window.inkAPI.readDir(dir);
+        setFileTree(nodes);
+        // 监听文件改动，自动刷新树
+        window.inkAPI.watchFiles([dir]);
+        window.inkAPI.onFileChanged((_: string) => {
+          window.inkAPI.readDir(dir).then(setFileTree);
+        });
+        return true;
+      } else {
+        console.error('🔄 ProjectContext: 加载项目路径失败，API返回null');
+        return false;
+      }
+    } catch (error) {
+      console.error('🔄 ProjectContext: 加载项目路径出错:', error);
+      return false;
+    }
+  }, []);
+
   const readDir = useCallback((dirPath: string) => {
     return window.inkAPI.readDir(dirPath);
   }, []);
@@ -95,6 +121,7 @@ export const ProjectProvider: React.FC<React.PropsWithChildren<{}>> = ({ childre
         fileTree,
         activeFile,
         openProject,
+        loadProjectPath,
         readDir,
         readFile,
         writeFile,

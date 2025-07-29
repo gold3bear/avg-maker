@@ -63,6 +63,40 @@ export const setupTestingUtils = () => {
       blockRefresh: () => {
         console.log('🔒 恢复刷新阻止');
       }
+    },
+    
+    recovery: {
+      // 显示所有存储的数据
+      showAllData: () => {
+        console.log('📊 所有存储的恢复数据:');
+        const data = {
+          sessionStorage: sessionStorage.getItem('avg-master-state'),
+          emergencyBackup: localStorage.getItem('avg-master-emergency-state'),
+          crashRecovery: localStorage.getItem('avg-master-recovery'),
+          fileBackups: localStorage.getItem('avg-master-file-backups')
+        };
+        console.log(data);
+        return data;
+      },
+      
+      // 清除所有恢复数据
+      clearAllRecoveryData: () => {
+        console.log('🗑️ 清除所有恢复数据');
+        sessionStorage.removeItem('avg-master-state');
+        localStorage.removeItem('avg-master-emergency-state');
+        localStorage.removeItem('avg-master-recovery');
+        localStorage.removeItem('avg-master-file-backups');
+        localStorage.removeItem('avg-master-session-id');
+        console.log('✅ 所有恢复数据已清除');
+      },
+      
+      // 强制重载测试恢复
+      testRecovery: () => {
+        console.log('🔄 测试数据恢复功能 - 5秒后刷新页面');
+        setTimeout(() => {
+          window.location.reload();
+        }, 5000);
+      }
     }
   };
 
@@ -72,4 +106,7 @@ export const setupTestingUtils = () => {
   console.log('- window.__DEV_TESTING__.crashRecovery.showRecoveryData()');
   console.log('- window.__DEV_TESTING__.crashRecovery.clearAllData()');
   console.log('- window.__DEV_TESTING__.crashRecovery.forceBackup(path, content)');
+  console.log('- window.__DEV_TESTING__.recovery.showAllData()');
+  console.log('- window.__DEV_TESTING__.recovery.clearAllRecoveryData()');
+  console.log('- window.__DEV_TESTING__.recovery.testRecovery()');
 };

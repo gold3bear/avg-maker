@@ -17,7 +17,7 @@ interface EditorProps {
 
 export const Editor: React.FC<EditorProps> = ({ filePath }) => {
   const { lintInk, externalErrors } = useContext(InkContext)!;
-  const { currentTheme } = useTheme();
+  const { currentTheme, colors } = useTheme();
   const { 
     markFileAsDirty, 
     markFileAsSaved, 
@@ -25,6 +25,7 @@ export const Editor: React.FC<EditorProps> = ({ filePath }) => {
     saveFile 
   } = useSave();
   const [content, setContent] = useState<string>('');
+  const [isEditorReady, setIsEditorReady] = useState(false);
   const monacoRef = useRef<typeof MonacoNamespace | null>(null);
   const editorRef = useRef<MonacoNamespace.editor.IStandaloneCodeEditor | null>(null);
 
@@ -242,11 +243,17 @@ export const Editor: React.FC<EditorProps> = ({ filePath }) => {
     monacoRef.current = monaco;
     // 注册完整的Ink语言支持
     registerInkLanguage(monaco);
+    
+    // 在编辑器创建前就设置主题，避免白屏闪烁
+    const themeName = getMonacoThemeName(currentTheme);
+    console.log('🎨 Editor: 在编辑器创建前设置主题:', themeName);
+    monaco.editor.setTheme(themeName);
   };
 
   // Monaco Editor 挂载回调：获取编辑器实例并配置
   const handleEditorDidMount: OnMount = (editor) => {
     editorRef.current = editor;
+    setIsEditorReady(true); // 标记编辑器已准备完成
     
     // 添加保存快捷键 (Cmd+S / Ctrl+S)
     if (monacoRef.current) {
@@ -323,12 +330,32 @@ export const Editor: React.FC<EditorProps> = ({ filePath }) => {
   };
 
   return (
-    <div className="h-full">
+    <div 
+      className="h-full relative" 
+      style={{ 
+        backgroundColor: colors.editorBackground, // 使用主题的编辑器背景色
+        color: colors.editorForeground // 使用主题的编辑器前景色
+      }}
+    >
+      {/* 编辑器加载期间显示与主题匹配的背景 */}
+      {!isEditorReady && (
+        <div 
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ 
+            backgroundColor: colors.editorBackground,
+            color: colors.textMuted
+          }}
+        >
+          <div className="text-sm">Loading editor...</div>
+        </div>
+      )}
+      
       <MonacoEditor
         height="100%"
         defaultLanguage="ink"
         language="ink"
         value={content}
+        theme={getMonacoThemeName(currentTheme)} // 直接设置主题避免闪烁
         beforeMount={handleBeforeMount}
         onMount={handleEditorDidMount}
         onChange={handleChange}
