@@ -275,7 +275,7 @@ export const inkCompletionProvider: monaco.languages.CompletionItemProvider = {
 };
 
 // 提取文档中的knots
-function extractKnots(content: string): string[] {
+export function extractKnots(content: string): string[] {
   const knots: string[] = [];
   const regex = /^===\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*===/gm;
   let match;
@@ -286,7 +286,7 @@ function extractKnots(content: string): string[] {
 }
 
 // 提取文档中的变量
-function extractVariables(content: string): string[] {
+export function extractVariables(content: string): string[] {
   const variables: string[] = [];
   const regex = /^VAR\s+([a-zA-Z_][a-zA-Z0-9_]*)/gm;
   let match;
