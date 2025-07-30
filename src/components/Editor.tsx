@@ -68,9 +68,11 @@ interface EditorProps {
   filePath: string | null;
   /** 外部插件触发回调（暂未使用） */
   onRunPlugin?: (id: string, params: string) => void;
+  /** 跳转到指定行号 */
+  goToLine?: number;
 }
 
-export const Editor: React.FC<EditorProps> = ({ filePath }) => {
+export const Editor: React.FC<EditorProps> = ({ filePath, goToLine }) => {
   const { lintInk, externalErrors } = useContext(InkContext)!;
   const { currentTheme, colors } = useTheme();
   const { 
@@ -292,6 +294,28 @@ export const Editor: React.FC<EditorProps> = ({ filePath }) => {
       document.removeEventListener('keydown', handleGlobalKeyDown, true);
     };
   }, [handleSave]);
+
+  // 跳转到指定行号
+  useEffect(() => {
+    if (goToLine && editorRef.current) {
+      setTimeout(() => {
+        if (editorRef.current) {
+          // 跳转到指定行并选中该行
+          editorRef.current.revealLineInCenter(goToLine);
+          editorRef.current.setPosition({ lineNumber: goToLine, column: 1 });
+          // 选中整行
+          editorRef.current.setSelection({
+            startLineNumber: goToLine,
+            startColumn: 1,
+            endLineNumber: goToLine,
+            endColumn: editorRef.current.getModel()?.getLineMaxColumn(goToLine) || 1
+          });
+          // 聚焦编辑器
+          editorRef.current.focus();
+        }
+      }, 100);
+    }
+  }, [goToLine]);
 
   // 在编辑器加载前获取Monaco SDK实例 - 增强错误处理
   const handleBeforeMount: BeforeMount = (monaco) => {

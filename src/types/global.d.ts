@@ -44,6 +44,8 @@ declare global {
       deleteFile?: (filePath: string) => Promise<boolean>;
       moveFile?: (src: string, dest: string) => Promise<boolean>;
       createDirectory?: (dirPath: string) => Promise<boolean>;
+      showInExplorer?: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+      copyFile?: (src: string, dest: string) => Promise<boolean>;
       
       // File watching
       watchFiles: (paths: string[]) => Promise<boolean>;

@@ -1,6 +1,6 @@
 // electron/main.ts
 
-import { app, BrowserWindow, ipcMain, dialog, session } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, session, shell } from 'electron';
 import { dirname, join, basename } from 'path';
 import { spawn, spawnSync } from 'child_process';
 import fs from 'fs';
@@ -812,6 +812,23 @@ ipcMain.handle('rename-file', (_, filePath: string, newName: string) => {
   return true;
 });
 
+ipcMain.handle('copy-file', (_, sourcePath: string, targetPath: string) => {
+  try {
+    const stat = fs.statSync(sourcePath);
+    if (stat.isDirectory()) {
+      // 复制目录
+      fs.cpSync(sourcePath, targetPath, { recursive: true });
+    } else {
+      // 复制文件
+      fs.copyFileSync(sourcePath, targetPath);
+    }
+    return true;
+  } catch (error) {
+    console.error('复制文件失败:', error);
+    return false;
+  }
+});
+
 ipcMain.handle('delete-file', (_, filePath: string) => {
   fs.rmSync(filePath, { recursive: true, force: true });
   return true;
@@ -1068,25 +1085,56 @@ ipcMain.handle('read-dir', async (_, dirPath: string) => {
     throw new Error('Invalid directory path provided');
   }
 
+  // 递归读取目录结构
+  const readDirRecursive = (path: string): any[] => {
+    try {
+      const items = fs.readdirSync(path, { withFileTypes: true });
+      
+      // 过滤隐藏文件和系统文件
+      const filteredItems = items.filter(item => {
+        return !item.name.startsWith('.') && 
+               item.name !== 'Thumbs.db' && 
+               item.name !== 'desktop.ini';
+      });
+      
+      const nodes = filteredItems.map(item => {
+        const fullPath = join(path, item.name);
+        const node = {
+          name: item.name,
+          path: fullPath,
+          isDirectory: item.isDirectory(),
+          children: undefined as any
+        };
+        
+        // 如果是目录，递归读取子内容
+        if (item.isDirectory()) {
+          try {
+            node.children = readDirRecursive(fullPath);
+          } catch (error) {
+            console.warn('read-dir: Cannot read subdirectory:', fullPath, error);
+            node.children = [];
+          }
+        }
+        
+        return node;
+      });
+      
+      // Sort directories first, then files
+      return nodes.sort((a, b) => {
+        if (a.isDirectory && !b.isDirectory) return -1;
+        if (!a.isDirectory && b.isDirectory) return 1;
+        return a.name.localeCompare(b.name);
+      });
+    } catch (error) {
+      console.error('read-dir: Error reading directory:', path, error);
+      return [];
+    }
+  };
+
   try {
-    const items = fs.readdirSync(dirPath, { withFileTypes: true });
-    const nodes = items.map(item => {
-      const fullPath = join(dirPath, item.name);
-      return {
-        name: item.name,
-        path: fullPath,
-        isDirectory: item.isDirectory(),
-        children: item.isDirectory() ? [] : undefined
-      };
-    });
-    // Sort directories first, then files
-    return nodes.sort((a, b) => {
-      if (a.isDirectory && !b.isDirectory) return -1;
-      if (!a.isDirectory && b.isDirectory) return 1;
-      return a.name.localeCompare(b.name);
-    });
+    return readDirRecursive(dirPath);
   } catch (error) {
-    console.error('read-dir: Error reading directory:', dirPath, error);
+    console.error('read-dir: Error reading root directory:', dirPath, error);
     throw error;
   }
 });
@@ -1171,5 +1219,16 @@ ipcMain.handle('open-preview-window', (_, filePath: string) => {
 ipcMain.handle('update-preview-file', (_, filePath: string) => {
   if (previewWindow && !previewWindow.isDestroyed()) {
     previewWindow.webContents.send('set-active-file', filePath);
+  }
+});
+
+// 在文件管理器中显示文件
+ipcMain.handle('show-in-explorer', async (_, filePath: string) => {
+  try {
+    await shell.showItemInFolder(filePath);
+    return { success: true };
+  } catch (error) {
+    console.error('show-in-explorer: Error showing item:', filePath, error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 });

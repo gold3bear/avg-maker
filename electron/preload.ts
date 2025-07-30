@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('inkAPI', {
   deleteFile: (filePath: string) => ipcRenderer.invoke('delete-file', filePath),
   moveFile: (src: string, dest: string) => ipcRenderer.invoke('move-file', src, dest),
   createDirectory: (dirPath: string) => ipcRenderer.invoke('create-directory', dirPath),
+  showInExplorer: (filePath: string) => ipcRenderer.invoke('show-in-explorer', filePath),
+  copyFile: (src: string, dest: string) => ipcRenderer.invoke('copy-file', src, dest),
   
   // File watching
   watchFiles: (paths: string[]) => ipcRenderer.invoke('watch-files', paths),

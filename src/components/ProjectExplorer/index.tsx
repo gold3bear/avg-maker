@@ -1,27 +1,29 @@
-import React, { useContext } from 'react';
-import { ProjectContext } from '../../context/ProjectContext';
-import { FileTree } from './FileTree';
-import { KnotManager } from './KnotManager';
-import { VariableManager } from './VariableManager';
+import React from 'react';
+import { FilesPanel } from './FilesPanel';
+import { OutlinePanel } from './OutlinePanel';
+import { VariablesPanel } from './VariablesPanel';
 
 interface ProjectExplorerProps {
   onSelect: (filePath: string) => void;
+  onNavigate?: (filePath: string, line: number) => void;
 }
 
-export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelect }) => {
-  const projectContext = useContext(ProjectContext);
-
-  if (!projectContext) {
-    throw new Error('ProjectExplorer must be used within ProjectProvider');
-  }
-
-  const { fileTree, readFile } = projectContext;
-
-  const renderNodeExtra = (node: any) => {
-    if (!node.isDirectory && node.path.endsWith('.ink')) {
-      return <KnotManager file={node} readFile={readFile} />;
+export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ 
+  onSelect, 
+  onNavigate 
+}) => {
+  const handleKnotSelect = (filePath: string, line: number) => {
+    onSelect(filePath);
+    if (onNavigate) {
+      onNavigate(filePath, line);
     }
-    return null;
+  };
+
+  const handleVariableSelect = (filePath: string, line: number) => {
+    onSelect(filePath);
+    if (onNavigate) {
+      onNavigate(filePath, line);
+    }
   };
 
   return (
@@ -33,16 +35,11 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ onSelect }) =>
         color: 'var(--color-sidebarForeground)'
       }}
     >
-      <div className="flex-1 overflow-auto p-2">
-        {fileTree.length > 0 ? (
-          <FileTree nodes={fileTree} onSelect={onSelect} renderNodeExtra={renderNodeExtra} />
-        ) : (
-          <div className="p-2 text-sm text-center" style={{ color: 'var(--color-textMuted)' }}>
-            未打开项目
-          </div>
-        )}
+      <div className="flex-1 overflow-auto">
+        <FilesPanel onFileSelect={onSelect} />
+        <OutlinePanel onKnotSelect={handleKnotSelect} />
+        <VariablesPanel onVariableSelect={handleVariableSelect} />
       </div>
-      <VariableManager files={fileTree} readFile={readFile} />
     </div>
   );
 };

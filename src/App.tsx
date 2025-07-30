@@ -62,6 +62,12 @@ const AppContent: React.FC = () => {
   // 防止在恢复完成前定期保存覆盖正确数据
   const isRecoveryCompleteRef = useRef(false);
 
+  // 编辑器导航状态
+  const [navigationTarget, setNavigationTarget] = useState<{
+    filePath: string;
+    line: number;
+  } | null>(null);
+
   // 清理所有恢复数据的辅助函数
   const clearAllRecoveryData = useCallback(() => {
     console.log('🧹 App: 清理所有恢复数据');
@@ -81,6 +87,27 @@ const AppContent: React.FC = () => {
     }
     console.log('📁 App: 安全选择文件:', filePath);
     selectFile(filePath);
+  }, [appMode, selectFile]);
+
+  // 处理导航到文件的特定行
+  const handleNavigateToLine = useCallback((filePath: string, line: number) => {
+    // 检查当前appMode，只有在normal或crash-recovery模式下才执行
+    if (appMode === 'welcome' || appMode === 'loading') {
+      console.log('⚠️ App: 跳过导航，当前处于:', appMode);
+      return;
+    }
+    console.log('📍 App: 导航到文件行:', filePath, line);
+    
+    // 首先选择文件
+    selectFile(filePath);
+    
+    // 设置导航目标
+    setNavigationTarget({ filePath, line });
+    
+    // 清除导航目标（避免重复导航）
+    setTimeout(() => {
+      setNavigationTarget(null);
+    }, 500);
   }, [appMode, selectFile]);
 
   // VS Code风格的状态管理
@@ -1070,7 +1097,10 @@ const AppContent: React.FC = () => {
             {sidebarVisible && <ActivityBar activeTab={activeTab} onTabChange={setActiveTab} />}
 
             {/* 侧边栏 */}
-            {sidebarVisible && activeTab === 'explorer' && <ProjectExplorer onSelect={selectFile} />}
+            {sidebarVisible && activeTab === 'explorer' && <ProjectExplorer 
+              onSelect={selectFile} 
+              onNavigate={handleNavigateToLine} 
+            />}
 
             {sidebarVisible && activeTab === 'bot' && (
               <AIChatPanel 
@@ -1104,6 +1134,7 @@ const AppContent: React.FC = () => {
             >
               <Editor
                 filePath={activeFile}
+                goToLine={navigationTarget?.filePath === activeFile ? navigationTarget.line : undefined}
                 onRunPlugin={(id, params) => {
                   const manifest = plugins.find((p) => p.id === id);
                   if (manifest) setPluginCtx({ manifest, params });
