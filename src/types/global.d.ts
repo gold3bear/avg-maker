@@ -53,6 +53,11 @@ declare global {
       
       // Export functionality
       exportGame: (mode: 'web' | 'desktop') => Promise<{ success: boolean; path: string; canceled?: boolean }>;
+
+      // Preview window
+      openPreviewWindow: (filePath: string) => Promise<void>;
+      updatePreviewFile: (filePath: string) => Promise<void>;
+      onSetActiveFile: (callback: (filePath: string) => void) => void;
       
       // Window controls
       minimizeWindow: () => Promise<void>;

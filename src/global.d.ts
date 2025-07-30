@@ -27,6 +27,10 @@ declare global {
         success: boolean;
         path: string;
       } | { canceled: true }>;
+
+      openPreviewWindow: (filePath: string) => Promise<void>;
+      updatePreviewFile: (filePath: string) => Promise<void>;
+      onSetActiveFile: (callback: (path: string) => void) => void;
     };
   }
 }

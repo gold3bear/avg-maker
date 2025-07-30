@@ -134,6 +134,13 @@ const AppContent: React.FC = () => {
     }
   }, [projectPath, activeFile, view, activeTab, sidebarVisible]);
 
+  // 更新独立预览窗口中的文件
+  React.useEffect(() => {
+    if (activeFile) {
+      window.inkAPI.updatePreviewFile?.(activeFile);
+    }
+  }, [activeFile]);
+
   // 防止页面刷新导致数据丢失
   React.useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -1003,10 +1010,11 @@ const AppContent: React.FC = () => {
     >
       {/* 顶部：标题栏 */}
       <div style={{ flexShrink: 0 }}>
-        <TitleBar 
+        <TitleBar
           title={getWindowTitle()}
           onToggleSidebar={() => setSidebarVisible(!sidebarVisible)}
           sidebarVisible={sidebarVisible}
+          activeFile={activeFile}
         />
       </div>
 
