@@ -21,26 +21,33 @@ import { appStartupManager } from './utils/AppStartupManager';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { LicenseNotice } from './components/LicenseNotice';
 import type { SidebarTab } from './types/sidebar';
+import { useAppStore, appActions } from './state/appStore';
 
 const AppContent: React.FC = () => {
   const { plugins, activeFile, selectFile, openProject, loadProjectPath, projectPath } = useContext(ProjectContext)!;
   const { hasUnsavedChanges, getUnsavedFiles, saveAllFiles } = useSave();
-  const [view, setView] = useState<'preview' | 'graph'>('preview');
-  const [activeTab, setActiveTab] = useState<SidebarTab>('explorer');
-  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const view = useAppStore((s) => s.view);
+  const activeTab = useAppStore((s) => s.activeTab);
+  const sidebarVisible = useAppStore((s) => s.sidebarVisible);
   const [pluginCtx, setPluginCtx] = useState<{
     manifest: any;
     params?: any;
   } | null>(null);
   
   // 应用启动状态
-  const [appMode, setAppMode] = useState<'loading' | 'welcome' | 'normal' | 'crash-recovery'>('loading');
+  const mode = useAppStore((s) => s.mode);
+  React.useEffect(() => {
+    appActions.setProjectPath(projectPath);
+  }, [projectPath]);
+  React.useEffect(() => {
+    appActions.setActiveFile(activeFile);
+  }, [activeFile]);
   
   // 许可证接受状态
-  const [licenseAccepted, setLicenseAccepted] = useState(false);
+  const licenseAccepted = useAppStore((s) => s.licenseAccepted);
   
   // 崩溃恢复状态
-  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const showRecoveryModal = useAppStore((s) => s.showRecoveryModal);
   const [recoveryData, setRecoveryData] = useState<{
     appState?: any;
     fileBackups?: Record<string, any>;
@@ -408,7 +415,7 @@ const AppContent: React.FC = () => {
   React.useEffect(() => {
     const accepted = localStorage.getItem('avg-master-license-accepted');
     if (accepted === 'true') {
-      setLicenseAccepted(true);
+      appActions.setLicenseAccepted(true);
     }
   }, []);
 
@@ -438,15 +445,14 @@ const AppContent: React.FC = () => {
       // 根据启动模式设置应用状态
       if (startupResult.mode === 'welcome') {
         console.log('👋 App: 进入欢迎页面模式');
-        setAppMode('welcome');
+        appActions.setMode('welcome');
         isRecoveryCompleteRef.current = true; // 欢迎模式下标记恢复完成
         return;
       }
       
       if (startupResult.mode === 'crash-recovery') {
         console.log('💥 App: 进入崩溃恢复模式');
-        setAppMode('crash-recovery');
-        setShowRecoveryModal(true);
+        appActions.setShowRecoveryModal(true);
         setRecoveryData(startupResult.recoveryData);
         return;
       }
@@ -494,9 +500,9 @@ const AppContent: React.FC = () => {
           });
           
           // 恢复状态 - 确保所有状态都被恢复
-          if (appState.view) setView(appState.view);
-          if (appState.activeTab) setActiveTab(appState.activeTab as SidebarTab);
-          if (appState.sidebarVisible !== undefined) setSidebarVisible(appState.sidebarVisible);
+          if (appState.view) appActions.setView(appState.view);
+          if (appState.activeTab) appActions.setActiveTab(appState.activeTab as SidebarTab);
+          if (appState.sidebarVisible !== undefined) appActions.setSidebarVisible(appState.sidebarVisible);
           
           // 特别处理projectPath恢复 - 使用loadProjectPath
           if (appState.projectPath && appState.projectPath !== projectPath) {
@@ -543,9 +549,9 @@ const AppContent: React.FC = () => {
         // 恢复UI状态
         if (states.ui) {
           console.log('🎨 恢复UI状态:', states.ui);
-          setView(states.ui.view || 'preview');
-          setActiveTab(states.ui.activeTab || 'explorer');
-          setSidebarVisible(states.ui.sidebarVisible !== undefined ? states.ui.sidebarVisible : true);
+          appActions.setView(states.ui.view || 'preview');
+          appActions.setActiveTab(states.ui.activeTab || 'explorer');
+          appActions.setSidebarVisible(states.ui.sidebarVisible !== undefined ? states.ui.sidebarVisible : true);
         }
         
         // 恢复编辑器状态 (包括从主崩溃恢复数据中获取的)
@@ -620,9 +626,9 @@ const AppContent: React.FC = () => {
           console.log('🚨 App: 从紧急备份恢复状态:', appState);
           
           // 恢复状态
-          if (appState.view) setView(appState.view);
-          if (appState.activeTab) setActiveTab(appState.activeTab as SidebarTab);
-          if (appState.sidebarVisible !== undefined) setSidebarVisible(appState.sidebarVisible);
+          if (appState.view) appActions.setView(appState.view);
+          if (appState.activeTab) appActions.setActiveTab(appState.activeTab as SidebarTab);
+          if (appState.sidebarVisible !== undefined) appActions.setSidebarVisible(appState.sidebarVisible);
           
           // 恢复项目路径
           if (appState.projectPath && appState.projectPath !== projectPath) {
@@ -668,14 +674,14 @@ const AppContent: React.FC = () => {
           appState: recovery.appState,
           fileBackups: recovery.fileBackups
         });
-        setShowRecoveryModal(true);
+        appActions.setShowRecoveryModal(true);
       } else if (recovery.hasRecovery && recovery.appState) {
         // 静默恢复基本状态（非崩溃情况）
         const appState = recovery.appState;
         console.log('🔄 静默恢复应用状态:', appState);
-        setView(appState.view || 'preview');
-        setActiveTab((appState.activeTab as SidebarTab) || 'explorer');
-        setSidebarVisible(appState.sidebarVisible !== undefined ? appState.sidebarVisible : true);
+        appActions.setView(appState.view || 'preview');
+        appActions.setActiveTab((appState.activeTab as SidebarTab) || 'explorer');
+        appActions.setSidebarVisible(appState.sidebarVisible !== undefined ? appState.sidebarVisible : true);
         
         // 恢复项目路径
         if (appState.projectPath && appState.projectPath !== projectPath) {
@@ -704,14 +710,12 @@ const AppContent: React.FC = () => {
         
         console.log('✅ 静默恢复完成');
         isRecoveryCompleteRef.current = true;
-        setAppMode('normal');
       } else {
         console.log('🔄 App: 没有找到需要恢复的数据');
         isRecoveryCompleteRef.current = true; // 即使没有数据恢复也标记完成
       }
       
-      // 完成恢复后设置为正常模式
-      setAppMode('normal');
+      // 完成恢复后
     };
 
     // 延迟检查，确保组件完全加载
@@ -787,9 +791,9 @@ const AppContent: React.FC = () => {
         const appState = recoveryData.appState;
         console.log('🔄 恢复项目状态:', appState);
         
-        setView(appState.view || 'preview');
-        setActiveTab((appState.activeTab as SidebarTab) || 'explorer');
-        setSidebarVisible(appState.sidebarVisible !== undefined ? appState.sidebarVisible : true);
+        appActions.setView(appState.view || 'preview');
+        appActions.setActiveTab((appState.activeTab as SidebarTab) || 'explorer');
+        appActions.setSidebarVisible(appState.sidebarVisible !== undefined ? appState.sidebarVisible : true);
         
         // 恢复项目路径
         if (appState.projectPath && appState.projectPath !== projectPath) {
@@ -817,9 +821,8 @@ const AppContent: React.FC = () => {
         }
       }
 
-      setShowRecoveryModal(false);
+      appActions.setShowRecoveryModal(false);
       crashRecovery.clearRecoveryData();
-      setAppMode('normal');
       
       console.log('✅ 崩溃恢复完成');
     } catch (error) {
@@ -828,16 +831,15 @@ const AppContent: React.FC = () => {
   };
 
   const handleRecoveryDismiss = () => {
-    setShowRecoveryModal(false);
+    appActions.setShowRecoveryModal(false);
     crashRecovery.clearRecoveryData();
-    setAppMode('normal');
   };
 
   // 欢迎页面事件处理
   const handleWelcomeCreateProject = () => {
     console.log('🆕 App: 创建新项目');
     appStartupManager.handleWelcomeComplete();
-    setAppMode('normal');
+    appActions.setMode('initializing');
     // 这里可以调用实际的创建项目逻辑
     // 暂时跳过，用户可以通过工具栏创建
   };
@@ -845,7 +847,7 @@ const AppContent: React.FC = () => {
   const handleWelcomeOpenProject = (projectPath?: string) => {
     console.log('📂 App: 打开项目', projectPath);
     appStartupManager.handleWelcomeComplete();
-    setAppMode('normal');
+    appActions.setMode('initializing');
     
     if (projectPath) {
       // 打开指定的项目路径
@@ -859,7 +861,7 @@ const AppContent: React.FC = () => {
   const handleWelcomeSkip = () => {
     console.log('⏭️ App: 跳过欢迎页面');
     appStartupManager.handleWelcomeComplete();
-    setAppMode('normal');
+    appActions.setMode('initializing');
   };
 
   const getWindowTitle = () => {
@@ -889,9 +891,9 @@ const AppContent: React.FC = () => {
     >
       {/* 顶部：标题栏 */}
       <div style={{ flexShrink: 0 }}>
-        <TitleBar 
+        <TitleBar
           title={getWindowTitle()}
-          onToggleSidebar={() => setSidebarVisible(!sidebarVisible)}
+          onToggleSidebar={() => appActions.setSidebarVisible(!sidebarVisible)}
           sidebarVisible={sidebarVisible}
         />
       </div>
@@ -899,7 +901,7 @@ const AppContent: React.FC = () => {
       {/* 主内容区域 */}
       <div className="flex-1 flex overflow-hidden">
         {/* 加载状态 */}
-        {appMode === 'loading' && (
+        {mode === 'initializing' && (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -909,7 +911,7 @@ const AppContent: React.FC = () => {
         )}
 
         {/* 欢迎页面 */}
-        {appMode === 'welcome' && (
+        {mode === 'welcome' && (
           <WelcomeScreen
             onCreateProject={handleWelcomeCreateProject}
             onOpenProject={handleWelcomeOpenProject}
@@ -918,10 +920,10 @@ const AppContent: React.FC = () => {
         )}
 
         {/* 正常模式和崩溃恢复模式 */}
-        {(appMode === 'normal' || appMode === 'crash-recovery') && (
+        {mode !== 'initializing' && mode !== 'welcome' && (
           <>
             {/* 左侧：活动栏 */}
-            {sidebarVisible && <ActivityBar activeTab={activeTab} onTabChange={setActiveTab} />}
+            {sidebarVisible && <ActivityBar activeTab={activeTab} onTabChange={appActions.setActiveTab} />}
 
             {/* 侧边栏 */}
             {sidebarVisible && activeTab === 'explorer' && <ProjectExplorer onSelect={selectFile} />}
@@ -931,7 +933,7 @@ const AppContent: React.FC = () => {
           {/* 顶部工具栏 */}
           <Toolbar
             view={view}
-            onViewChange={setView}
+            onViewChange={appActions.setView}
             onOpenProject={openProject}
             onExportWeb={() => window.inkAPI.exportGame('web')}
             onExportDesktop={() => window.inkAPI.exportGame('desktop')}
@@ -1003,8 +1005,8 @@ const AppContent: React.FC = () => {
 
       {/* 许可证接受模态框 */}
       {!licenseAccepted && (
-        <LicenseNotice 
-          onAccept={() => setLicenseAccepted(true)} 
+        <LicenseNotice
+          onAccept={() => appActions.setLicenseAccepted(true)}
         />
       )}
     </div>
