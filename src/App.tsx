@@ -14,9 +14,8 @@ import { NodeGraph } from './components/NodeGraph';
 import { PluginHost } from './components/PluginHost';
 import { CrashRecoveryModal } from './components/CrashRecoveryModal';
 // import { SaveConfirmDialog } from './components/SaveConfirmDialog'; // 改用系统对话框
-import { crashRecovery } from './utils/crashRecovery';
+import { storageSystem } from './utils/StorageSystem';
 import { setupTestingUtils } from './utils/testingUtils';
-import { useWorkspaceState } from './hooks/useWorkspaceState';
 import { appStartupManager } from './utils/AppStartupManager';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { LicenseNotice } from './components/LicenseNotice';
@@ -61,14 +60,6 @@ const AppContent: React.FC = () => {
   // 防止在恢复完成前定期保存覆盖正确数据
   const isRecoveryCompleteRef = useRef(false);
 
-  // VS Code风格的状态管理
-  const workspaceState = useWorkspaceState({
-    projectPath,
-    activeFile,
-    view,
-    activeTab,
-    sidebarVisible
-  });
 
   // 使用ref保存最新状态，避免在beforeunload时状态被重置
   const latestStateRef = useRef({
@@ -89,20 +80,11 @@ const AppContent: React.FC = () => {
       sidebarVisible
     };
     
-    // 当重要状态变化时立即保存到sessionStorage（恢复完成后）
     if (isRecoveryCompleteRef.current && (projectPath || activeFile)) {
-      const appState = {
-        projectPath,
-        activeFile,
-        view,
-        activeTab,
-        sidebarVisible,
-        timestamp: Date.now()
-      };
-      
       try {
-        sessionStorage.setItem('avg-master-state', JSON.stringify(appState));
-        localStorage.setItem('avg-master-emergency-state', JSON.stringify(appState));
+        storageSystem.updateWorkspace({ projectPath });
+        storageSystem.updateEditor({ activeFile });
+        storageSystem.updateUI({ view, activeTab, sidebarVisible });
         console.log('🔄 App: 重要状态变化，立即保存:', { projectPath, activeFile });
       } catch (error) {
         console.warn('立即保存状态失败:', error);
@@ -127,31 +109,21 @@ const AppContent: React.FC = () => {
       const currentState = latestStateRef.current;
       console.log('🔄 App: 当前状态 from ref:', currentState);
       
-      // 保存当前状态到多个存储位置确保可靠性
-      const appState = {
-        ...currentState,
-        timestamp: Date.now()
-      };
-      
       try {
-        // 保存到 sessionStorage（优先）
-        sessionStorage.setItem('avg-master-state', JSON.stringify(appState));
-        console.log('💾 App: 状态已保存到 sessionStorage');
-        
-        // 同时保存到 localStorage 作为备份
-        localStorage.setItem('avg-master-emergency-state', JSON.stringify(appState));
-        console.log('💾 App: 状态已保存到 localStorage 作为备份');
-        
-        // 使用崩溃恢复系统保存
-        crashRecovery.saveAppState(appState);
-        console.log('💾 App: 状态已保存到崩溃恢复系统');
+        storageSystem.updateWorkspace({ projectPath: currentState.projectPath });
+        storageSystem.updateEditor({ activeFile: currentState.activeFile });
+        storageSystem.updateUI({
+          view: currentState.view,
+          activeTab: currentState.activeTab,
+          sidebarVisible: currentState.sidebarVisible
+        });
       } catch (error) {
         console.warn('Failed to save app state:', error);
       }
 
       // 如果是窗口正在关闭，不阻止
       if (isClosing) {
-        crashRecovery.normalExit();
+        storageSystem.cleanup();
         return;
       }
 
@@ -173,19 +145,10 @@ const AppContent: React.FC = () => {
         e.stopImmediatePropagation();
         
         // 立即保存当前状态以防意外刷新
-        const appState = {
-          projectPath,
-          activeFile,
-          view,
-          activeTab,
-          sidebarVisible,
-          timestamp: Date.now()
-        };
-        
         try {
-          sessionStorage.setItem('avg-master-emergency-state', JSON.stringify(appState));
-          localStorage.setItem('avg-master-emergency-backup', JSON.stringify(appState));
-          console.log('💾 紧急状态已保存');
+          storageSystem.updateWorkspace({ projectPath });
+          storageSystem.updateEditor({ activeFile });
+          storageSystem.updateUI({ view, activeTab, sidebarVisible });
         } catch (error) {
           console.warn('Failed to save emergency state:', error);
         }
@@ -221,7 +184,7 @@ const AppContent: React.FC = () => {
       // 只有在真正关闭应用时才清理数据，而不是在热重载或刷新时
       // 在开发模式下，组件卸载通常是因为热重载，不应该清理恢复数据
       if (!process.env.NODE_ENV || process.env.NODE_ENV !== 'development') {
-        crashRecovery.normalExit();
+        storageSystem.cleanup();
       } else {
         console.log('🔧 App: 开发模式下跳过正常退出清理，保留恢复数据');
       }
@@ -323,7 +286,7 @@ const AppContent: React.FC = () => {
             if (success) {
               console.log('✅ App: 保存成功，确认关闭');
               setIsClosing(true);
-              crashRecovery.normalExit();
+              storageSystem.cleanup();
               window.inkAPI?.confirmClose();
             } else {
               console.error('❌ App: 保存失败，取消关闭');
@@ -334,7 +297,7 @@ const AppContent: React.FC = () => {
             // 用户选择不保存
             console.log('🗑️ App: 用户选择不保存，直接关闭');
             setIsClosing(true);
-            crashRecovery.normalExit();
+            storageSystem.cleanup();
             window.inkAPI?.confirmClose();
           } else {
             // 用户选择取消 (choice === 2)
@@ -357,7 +320,7 @@ const AppContent: React.FC = () => {
         console.log('✅ App: 没有未保存文件，直接关闭');
         window.inkAPI?.logToMain?.('✅ App: 没有未保存文件，直接关闭');
         setIsClosing(true);
-        crashRecovery.normalExit();
+        storageSystem.cleanup();
         
         // 立即通知主进程可以关闭
         if (window.inkAPI?.confirmClose) {
@@ -412,315 +375,53 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  // 页面加载时检查崩溃恢复
+  // 应用初始化与恢复
   React.useEffect(() => {
-    // 设置开发测试工具
     setupTestingUtils();
-    
-    const checkRecovery = async () => {
-      // 如果已经尝试过恢复，不再执行
-      if (hasAttemptedRecoveryRef.current) {
-        console.log('🔄 App: 已经尝试过恢复，跳过重复执行');
-        return;
-      }
-      
-      console.log('🔄 App: 开始检查数据恢复 (第一次)');
-      console.log('🔄 App: hasAttemptedRecoveryRef.current 当前值:', hasAttemptedRecoveryRef.current);
-      
-      // 立即标记已经尝试过恢复，防止重复执行
-      hasAttemptedRecoveryRef.current = true;
-      console.log('🔄 App: 已设置 hasAttemptedRecoveryRef.current = true');
-      
-      // 使用启动管理器检查启动模式
+
+    async function init() {
       const startupResult = appStartupManager.checkStartupMode();
-      console.log('🚀 App: 启动模式检测结果:', startupResult);
-      
-      // 根据启动模式设置应用状态
+
       if (startupResult.mode === 'welcome') {
-        console.log('👋 App: 进入欢迎页面模式');
         setAppMode('welcome');
-        isRecoveryCompleteRef.current = true; // 欢迎模式下标记恢复完成
+        isRecoveryCompleteRef.current = true;
         return;
       }
-      
+
       if (startupResult.mode === 'crash-recovery') {
-        console.log('💥 App: 进入崩溃恢复模式');
-        setAppMode('crash-recovery');
         setShowRecoveryModal(true);
         setRecoveryData(startupResult.recoveryData);
-        return;
       }
-      
-      // 继续现有的恢复逻辑（用于restore-session模式）
-      console.log('🔄 App: 继续会话恢复逻辑');
-      
-      // 首先检查所有可能的存储位置
-      const sessionData = sessionStorage.getItem('avg-master-state');
-      const emergencyData = localStorage.getItem('avg-master-emergency-state');
-      const crashRecoveryData = crashRecovery.checkForCrashRecovery();
-      
-      console.log('🔍 App: 恢复数据检查结果:', {
-        sessionData: !!sessionData,
-        sessionDataContent: sessionData ? JSON.parse(sessionData) : null,
-        emergencyData: !!emergencyData,
-        emergencyDataContent: emergencyData ? JSON.parse(emergencyData) : null,
-        crashRecovery: crashRecoveryData.hasRecovery,
-        workspaceRestore: workspaceState.shouldRestore()
-      });
-      
-      // 额外的调试信息
-      console.log('🔍 App: localStorage崩溃恢复原始数据:', localStorage.getItem('avg-master-recovery'));
-      console.log('🔍 App: localStorage会话ID:', localStorage.getItem('avg-master-session-id'));
-      console.log('🔍 App: crashRecoveryData完整信息:', crashRecoveryData);
-      
-      // 检查sessionData中的activeFile信息
-      if (sessionData) {
-        const sessionState = JSON.parse(sessionData);
-        console.log('🔍 App: sessionStorage中的activeFile:', sessionState.activeFile);
-      }
-      
-      // 优先检查 sessionStorage 中的状态数据，因为它包含最完整的状态
-      if (sessionData) {
-        try {
-          const appState = JSON.parse(sessionData);
-          console.log('🔄 App: 从 sessionStorage 恢复状态:', appState);
-          console.log('🔄 App: 当前状态对比:', {
-            当前projectPath: projectPath,
-            恢复projectPath: appState.projectPath,
-            当前activeFile: activeFile,
-            恢复activeFile: appState.activeFile,
-            当前view: view,
-            恢复view: appState.view
-          });
-          
-          // 恢复状态 - 确保所有状态都被恢复
-          if (appState.view) setView(appState.view);
-          if (appState.activeTab) setActiveTab(appState.activeTab as SidebarTab);
-          if (appState.sidebarVisible !== undefined) setSidebarVisible(appState.sidebarVisible);
-          
-          // 特别处理projectPath恢复 - 使用loadProjectPath
-          if (appState.projectPath && appState.projectPath !== projectPath) {
-            console.log('🔄 App: 恢复项目路径:', appState.projectPath);
-            try {
-              const success = await loadProjectPath(appState.projectPath);
-              if (!success) {
-                console.warn('恢复项目路径失败');
-              }
-            } catch (error) {
-              console.warn('恢复项目路径失败:', error);
-            }
-          }
-          
-          // 恢复当前打开的文件
-          if (appState.activeFile && appState.activeFile !== activeFile) {
-            console.log('🔄 App: 恢复当前打开的文件:', appState.activeFile);
-            // 延迟执行确保项目路径已经恢复
-            setTimeout(() => {
-              selectFile(appState.activeFile);
-            }, 500);
-          }
-          
-          // 延迟清除数据，确保不会影响其他可能的恢复逻辑
-          setTimeout(() => {
-            sessionStorage.removeItem('avg-master-state');
-            console.log('🧹 App: 已清除sessionStorage恢复数据');
-          }, 2000);
-          
-          console.log('✅ sessionStorage 状态恢复完成');
-          isRecoveryCompleteRef.current = true;
-          return;
-        } catch (error) {
-          console.warn('从 sessionStorage 恢复状态失败:', error);
-        }
-      }
-      
-      // VS Code风格：检查是否应该恢复状态（作为备用方案）
-      if (workspaceState.shouldRestore()) {
-        console.log('🔄 VS Code风格恢复：检测到需要恢复的状态（备用方案）');
-        
-        const states = workspaceState.restoreStates();
-        
-        // 恢复UI状态
-        if (states.ui) {
-          console.log('🎨 恢复UI状态:', states.ui);
-          setView(states.ui.view || 'preview');
-          setActiveTab(states.ui.activeTab || 'explorer');
-          setSidebarVisible(states.ui.sidebarVisible !== undefined ? states.ui.sidebarVisible : true);
-        }
-        
-        // 恢复编辑器状态 (包括从主崩溃恢复数据中获取的)
-        if (states.editor && states.editor.activeFile) {
-          console.log('📝 恢复编辑器状态:', states.editor);
-          console.log('📝 编辑器状态详情:', {
-            hasActiveFile: !!states.editor.activeFile,
-            savedActiveFile: states.editor.activeFile,
-            currentActiveFile: activeFile,
-            filesAreDifferent: states.editor.activeFile !== activeFile
-          });
-          
-          if (states.editor.activeFile !== activeFile) {
-            console.log('📝 恢复当前打开的文件:', states.editor.activeFile);
-            setTimeout(() => {
-              selectFile(states.editor.activeFile);
-            }, 800); // 延迟确保项目已加载
-          } else {
-            console.log('📝 跳过文件恢复，文件已经是当前活动文件');
-          }
-        } else {
-          console.log('📝 没有找到有效的编辑器状态数据，尝试备用恢复方案');
-          
-          // 备用方案：直接从主要的崩溃恢复数据中获取
-          if (crashRecoveryData.hasRecovery && crashRecoveryData.appState && crashRecoveryData.appState.activeFile) {
-            console.log('📝 从主崩溃恢复数据中恢复文件:', crashRecoveryData.appState.activeFile);
-            setTimeout(() => {
-              selectFile(crashRecoveryData.appState.activeFile);
-            }, 1000); // 延迟更长时间确保项目已加载
-          } else {
-            console.log('📝 没有找到任何可恢复的文件信息');
-          }
-        }
-        
-        // 恢复工作区状态 - 实际调用openProject
-        if (states.workspace && states.workspace.projectPath) {
-          console.log('📁 恢复工作区状态:', states.workspace);
-          console.log('📁 当前projectPath:', projectPath, '需要恢复的projectPath:', states.workspace.projectPath);
-          
-          if (states.workspace.projectPath !== projectPath) {
-            console.log('📁 开始恢复项目路径:', states.workspace.projectPath);
-            try {
-              const success = await loadProjectPath(states.workspace.projectPath);
-              if (success) {
-                console.log('✅ 项目路径恢复成功');
-              } else {
-                console.error('❌ 项目路径恢复失败');
-              }
-            } catch (error) {
-              console.error('❌ 项目路径恢复出错:', error);
-            }
-          } else {
-            console.log('📁 项目路径已经是正确的，无需恢复');
-          }
-        }
-        
-        // 检查是否成功恢复了activeFile，如果没有，继续检查主崩溃恢复数据
-        if (!states.editor || !states.editor.activeFile) {
-          console.log('📝 VS Code风格恢复没有找到activeFile，继续检查主崩溃恢复数据');
-          // 不设置恢复完成，让后面的主恢复逻辑继续执行
-        } else {
-          console.log('✅ VS Code风格恢复完成，成功找到activeFile:', states.editor.activeFile);
-          isRecoveryCompleteRef.current = true;
-          return; // VS Code风格恢复完成
-        }
-      }
-      
-      // 检查紧急备份（localStorage）
-      if (emergencyData) {
-        try {
-          const appState = JSON.parse(emergencyData);
-          console.log('🚨 App: 从紧急备份恢复状态:', appState);
-          
-          // 恢复状态
-          if (appState.view) setView(appState.view);
-          if (appState.activeTab) setActiveTab(appState.activeTab as SidebarTab);
-          if (appState.sidebarVisible !== undefined) setSidebarVisible(appState.sidebarVisible);
-          
-          // 恢复项目路径
-          if (appState.projectPath && appState.projectPath !== projectPath) {
-            console.log('🚨 App: 从紧急备份恢复项目路径:', appState.projectPath);
-            try {
-              const success = await loadProjectPath(appState.projectPath);
-              if (!success) {
-                console.warn('从紧急备份恢复项目路径失败');
-              }
-            } catch (error) {
-              console.warn('从紧急备份恢复项目路径失败:', error);
-            }
-          }
-          
-          // 恢复当前打开的文件
-          if (appState.activeFile && appState.activeFile !== activeFile) {
-            console.log('🚨 App: 从紧急备份恢复当前打开的文件:', appState.activeFile);
-            setTimeout(() => {
-              selectFile(appState.activeFile);
-            }, 500);
-          }
-          
-          // 延迟清除紧急备份，确保不会影响其他可能的恢复逻辑
-          setTimeout(() => {
-            localStorage.removeItem('avg-master-emergency-state');
-            console.log('🧹 App: 已清除localStorage紧急备份数据');
-          }, 2000);
-          
-          console.log('✅ 紧急备份恢复完成');
-          isRecoveryCompleteRef.current = true;
-          return;
-        } catch (error) {
-          console.warn('紧急备份恢复失败:', error);
-        }
-      }
-      
-      // 常规的崩溃恢复检查
-      const recovery = crashRecovery.checkForCrashRecovery();
-      
-      if (recovery.hasRecovery && recovery.crashDetected) {
-        console.log('🔄 检测到崩溃恢复数据:', recovery);
-        setRecoveryData({
-          appState: recovery.appState,
-          fileBackups: recovery.fileBackups
-        });
-        setShowRecoveryModal(true);
-      } else if (recovery.hasRecovery && recovery.appState) {
-        // 静默恢复基本状态（非崩溃情况）
-        const appState = recovery.appState;
-        console.log('🔄 静默恢复应用状态:', appState);
-        setView(appState.view || 'preview');
-        setActiveTab((appState.activeTab as SidebarTab) || 'explorer');
-        setSidebarVisible(appState.sidebarVisible !== undefined ? appState.sidebarVisible : true);
-        
-        // 恢复项目路径
-        if (appState.projectPath && appState.projectPath !== projectPath) {
-          console.log('🔄 App: 静默恢复项目路径:', appState.projectPath);
-          try {
-            const success = await loadProjectPath(appState.projectPath);
-            if (!success) {
-              console.warn('静默恢复项目路径失败');
-            }
-          } catch (error) {
-            console.warn('静默恢复项目路径失败:', error);
-          }
-        }
-        
-        // 恢复当前打开的文件
-        if (appState.activeFile && appState.activeFile !== activeFile) {
-          console.log('🔄 App: 静默恢复当前打开的文件:', appState.activeFile);
-          setTimeout(() => {
-            selectFile(appState.activeFile);
-          }, 500);
-        } else if (appState.activeFile) {
-          console.log('🔄 App: 文件已经是当前活动文件，无需恢复:', appState.activeFile);
-        } else {
-          console.log('🔄 App: 没有找到需要恢复的活动文件');
-        }
-        
-        console.log('✅ 静默恢复完成');
-        isRecoveryCompleteRef.current = true;
-        setAppMode('normal');
-      } else {
-        console.log('🔄 App: 没有找到需要恢复的数据');
-        isRecoveryCompleteRef.current = true; // 即使没有数据恢复也标记完成
-      }
-      
-      // 完成恢复后设置为正常模式
-      setAppMode('normal');
-    };
 
-    // 延迟检查，确保组件完全加载
-    const timeoutId = setTimeout(checkRecovery, 1000);
-    
+      const result = await storageSystem.initialize();
+      const state = storageSystem.getCurrentState();
+
+      setView(state.ui.view);
+      setActiveTab(state.ui.activeTab);
+      setSidebarVisible(state.ui.sidebarVisible);
+
+      if (state.workspace.projectPath) {
+        await loadProjectPath(state.workspace.projectPath);
+      }
+
+      if (state.editor.activeFile) {
+        selectFile(state.editor.activeFile);
+      }
+
+      if (result.showRecoveryModal) {
+        setShowRecoveryModal(true);
+      }
+
+      isRecoveryCompleteRef.current = true;
+      setAppMode('normal');
+    }
+
+    init();
+
     return () => {
-      clearTimeout(timeoutId);
+      storageSystem.cleanup();
     };
-  }, [loadProjectPath]);
+  }, [loadProjectPath, selectFile]);
 
   // 定期保存状态用于崩溃恢复
   React.useEffect(() => {
@@ -743,23 +444,15 @@ const AppContent: React.FC = () => {
       };
       
       console.log('💾 App: 定期保存状态:', appState);
-      
-      // 多重保存确保可靠性
+
       try {
-        // 1. 保存到崩溃恢复系统
-        crashRecovery.saveAppState(appState);
-        
-        // 2. 保存到 sessionStorage
-        sessionStorage.setItem('avg-master-state', JSON.stringify({
-          ...appState,
-          timestamp: Date.now()
-        }));
-        
-        // 3. 保存到 localStorage 作为备份
-        localStorage.setItem('avg-master-emergency-state', JSON.stringify({
-          ...appState,
-          timestamp: Date.now()
-        }));
+        storageSystem.updateWorkspace({ projectPath: appState.projectPath });
+        storageSystem.updateEditor({ activeFile: appState.activeFile });
+        storageSystem.updateUI({
+          view: appState.view,
+          activeTab: appState.activeTab,
+          sidebarVisible: appState.sidebarVisible
+        });
       } catch (error) {
         console.warn('定期保存状态失败:', error);
       }
@@ -778,9 +471,7 @@ const AppContent: React.FC = () => {
   const handleCrashRestore = async (restoreFiles: boolean, restoreProject: boolean) => {
     try {
       if (restoreFiles && recoveryData.fileBackups) {
-        for (const filePath of Object.keys(recoveryData.fileBackups)) {
-          await crashRecovery.restoreFile(filePath);
-        }
+        // TODO: implement file restoration via storageSystem
       }
 
       if (restoreProject && recoveryData.appState) {
@@ -818,7 +509,7 @@ const AppContent: React.FC = () => {
       }
 
       setShowRecoveryModal(false);
-      crashRecovery.clearRecoveryData();
+      storageSystem.clearRecoveryData();
       setAppMode('normal');
       
       console.log('✅ 崩溃恢复完成');
@@ -829,7 +520,7 @@ const AppContent: React.FC = () => {
 
   const handleRecoveryDismiss = () => {
     setShowRecoveryModal(false);
-    crashRecovery.clearRecoveryData();
+    storageSystem.clearRecoveryData();
     setAppMode('normal');
   };
 
