@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import './global.css'
 import App from './App.tsx'
+import PreviewWindow from './PreviewWindow'
 import { ProjectProvider } from './context/ProjectContext.tsx'
 import { InkProvider } from './context/InkContext.tsx'
 
@@ -12,13 +13,15 @@ if (process.env.NODE_ENV === 'development') {
   console.log('🔧 React made globally available for DevTools');
 }
 
+const params = new URLSearchParams(window.location.search)
+const mode = params.get('mode')
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ProjectProvider>
       <InkProvider>
-        <App />
+        {mode === 'preview' ? <PreviewWindow /> : <App />}
       </InkProvider>
     </ProjectProvider>
-
   </StrictMode>,
 )

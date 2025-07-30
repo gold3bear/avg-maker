@@ -230,6 +230,21 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
     initializeStory();
   }, [initializeStory]);
 
+  // 热加载：监听文件变化重新初始化
+  useEffect(() => {
+    if (!filePath) return;
+    window.inkAPI.watchFiles([filePath]);
+    const handler = (changedPath: string) => {
+      if (changedPath === filePath) {
+        initializeStory();
+      }
+    };
+    window.inkAPI.onFileChanged(handler);
+    return () => {
+      /* cleanup not needed in this simple watcher */
+    };
+  }, [filePath, initializeStory]);
+
   // 从选择文本中提取目标knot名称
   const extractKnotFromChoice = useCallback((choice: any): string | null => {
     try {

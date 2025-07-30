@@ -1,18 +1,20 @@
 /// <reference path="../types/global.d.ts" />
 import React, { useEffect, useState } from 'react';
-import { Minus, Square, X, Sidebar, Layers, Search } from 'lucide-react';
+import { Minus, Square, X, Sidebar, Layers, Search, Play } from 'lucide-react';
 import { useSave } from '../context/SaveContext';
 
 interface TitleBarProps {
   title?: string;
   onToggleSidebar?: () => void;
   sidebarVisible?: boolean;
+  activeFile?: string | null;
 }
 
 export const TitleBar: React.FC<TitleBarProps> = ({
   title = 'AVG Maker',
   onToggleSidebar,
   sidebarVisible = true,
+  activeFile = null,
 }) => {
   const platform = navigator.platform.toLowerCase();
   const isMacOS = platform.includes('mac');
@@ -48,6 +50,12 @@ export const TitleBar: React.FC<TitleBarProps> = ({
 
   const handleMaximize = () => {
     window.inkAPI?.maximizeWindow?.();
+  };
+
+  const handlePreview = () => {
+    if (activeFile) {
+      window.inkAPI?.openPreviewWindow?.(activeFile);
+    }
   };
 
   const handleClose = () => {
@@ -135,6 +143,16 @@ export const TitleBar: React.FC<TitleBarProps> = ({
           title="Search"
         >
           <Search size={14} style={{ color: 'var(--color-text)' }} />
+        </button>
+
+        {/* Preview button */}
+        <button
+          className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+          style={{ WebkitAppRegion: 'no-drag' }}
+          title="Preview"
+          onClick={handlePreview}
+        >
+          <Play size={14} style={{ color: 'var(--color-text)' }} />
         </button>
 
         {/* Windows 风格的窗口控制按钮 */}

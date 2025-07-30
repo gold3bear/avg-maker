@@ -28,6 +28,13 @@ contextBridge.exposeInMainWorld('inkAPI', {
   
   // Export functionality
   exportGame: (mode: 'web' | 'desktop') => ipcRenderer.invoke('export-game', mode),
+
+  // Preview window controls
+  openPreviewWindow: (filePath: string) => ipcRenderer.invoke('open-preview-window', filePath),
+  updatePreviewFile: (filePath: string) => ipcRenderer.invoke('update-preview-file', filePath),
+  onSetActiveFile: (callback: (filePath: string) => void) => {
+    ipcRenderer.on('set-active-file', (_, filePath) => callback(filePath));
+  },
   
   // Window controls
   minimizeWindow: () => ipcRenderer.invoke('minimize-window'),

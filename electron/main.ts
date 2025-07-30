@@ -25,6 +25,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 let mainWindow: BrowserWindow | null = null;
+let previewWindow: BrowserWindow | null = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -285,6 +286,43 @@ function createWindow() {
   });
 }
 
+function createPreviewWindow(filePath: string) {
+  if (previewWindow && !previewWindow.isDestroyed()) {
+    previewWindow.focus();
+    previewWindow.webContents.send('set-active-file', filePath);
+    return;
+  }
+
+  previewWindow = new BrowserWindow({
+    width: 800,
+    height: 600,
+    title: 'Preview',
+    webPreferences: {
+      preload: join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: !app.isPackaged,
+      devTools: !app.isPackaged,
+    },
+  });
+
+  previewWindow.on('closed', () => {
+    previewWindow = null;
+  });
+
+  if (app.isPackaged) {
+    previewWindow.loadFile(join(__dirname, '../../public/index.html'), {
+      search: 'mode=preview',
+    });
+  } else {
+    previewWindow.loadURL('http://localhost:5173/?mode=preview');
+  }
+
+  previewWindow.webContents.once('did-finish-load', () => {
+    previewWindow?.webContents.send('set-active-file', filePath);
+  });
+}
+
 app.whenReady().then(async () => {
   // 在开发环境中安装React DevTools
   if (!app.isPackaged) {
@@ -366,6 +404,7 @@ ipcMain.handle('watch-files', (_, paths: string[]) => {
   const watcher = chokidar.watch(paths, { ignoreInitial: true });
   watcher.on('change', changedPath => {
     mainWindow?.webContents.send('file-changed', changedPath);
+    previewWindow?.webContents.send('file-changed', changedPath);
   });
   return true;
 });
@@ -669,4 +708,14 @@ ipcMain.handle('set-window-title', (_, title: string) => {
 // 渲染进程日志转发
 ipcMain.handle('log-to-main', (_, message: string) => {
   console.log('[Renderer]', message);
+});
+
+ipcMain.handle('open-preview-window', (_, filePath: string) => {
+  createPreviewWindow(filePath);
+});
+
+ipcMain.handle('update-preview-file', (_, filePath: string) => {
+  if (previewWindow && !previewWindow.isDestroyed()) {
+    previewWindow.webContents.send('set-active-file', filePath);
+  }
 });
