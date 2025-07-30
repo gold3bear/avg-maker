@@ -13,6 +13,10 @@ contextBridge.exposeInMainWorld('inkAPI', {
   readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
   writeFile: (filePath: string, content: string) => ipcRenderer.invoke('write-file', filePath, content),
   readDir: (dirPath: string) => ipcRenderer.invoke('read-dir', dirPath),
+  renameFile: (filePath: string, newName: string) => ipcRenderer.invoke('rename-file', filePath, newName),
+  deleteFile: (filePath: string) => ipcRenderer.invoke('delete-file', filePath),
+  moveFile: (src: string, dest: string) => ipcRenderer.invoke('move-file', src, dest),
+  createDirectory: (dirPath: string) => ipcRenderer.invoke('create-directory', dirPath),
   
   // File watching
   watchFiles: (paths: string[]) => ipcRenderer.invoke('watch-files', paths),
@@ -22,6 +26,7 @@ contextBridge.exposeInMainWorld('inkAPI', {
   
   // Ink compilation
   compileInk: (source: string, lintOnly: boolean = false, sourceFilePath?: string) => ipcRenderer.invoke('compile-ink', source, lintOnly, sourceFilePath),
+  compileProject: (root: string) => ipcRenderer.invoke('compile-project', root),
   
   // Plugin system
   loadPlugins: () => ipcRenderer.invoke('load-plugins'),

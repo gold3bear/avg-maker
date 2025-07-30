@@ -805,6 +805,28 @@ ipcMain.handle('write-file', (_, filePath: string, content: string) => {
   return true;
 });
 
+ipcMain.handle('rename-file', (_, filePath: string, newName: string) => {
+  const dir = dirname(filePath);
+  const newPath = join(dir, newName);
+  fs.renameSync(filePath, newPath);
+  return true;
+});
+
+ipcMain.handle('delete-file', (_, filePath: string) => {
+  fs.rmSync(filePath, { recursive: true, force: true });
+  return true;
+});
+
+ipcMain.handle('move-file', (_, src: string, dest: string) => {
+  fs.renameSync(src, dest);
+  return true;
+});
+
+ipcMain.handle('create-directory', (_, dirPath: string) => {
+  fs.mkdirSync(dirPath, { recursive: true });
+  return true;
+});
+
 // 监听指定文件列表的变更，发送 'file-changed' 通知
 ipcMain.handle('watch-files', (_, paths: string[]) => {
   const watcher = chokidar.watch(paths, { ignoreInitial: true });
@@ -982,6 +1004,32 @@ ipcMain.handle('compile-ink', async (_, inkText: string, lintOnly: boolean, sour
       }
     });
   });
+});
+
+ipcMain.handle('compile-project', async (_, root: string) => {
+  try {
+    const files = fs.readdirSync(root).filter(f => f.endsWith('.ink'));
+    if (files.length === 0) return { success: false, error: 'no ink files' };
+    const mainFile = join(root, files[0]);
+    const inklecatePath = app.isPackaged
+      ? join(process.resourcesPath, 'bin/inklecate')
+      : join(__dirname, '../../bin/inklecate');
+    return await new Promise((resolve, reject) => {
+      const args = [mainFile];
+      const proc = spawn(inklecatePath, args, { cwd: root });
+      let stderr = '';
+      proc.stderr.on('data', chunk => { stderr += chunk.toString(); });
+      proc.on('close', code => {
+        if (code === 0) {
+          resolve({ success: true, warnings: stderr.trim() ? stderr.trim().split('\n') : [] });
+        } else {
+          reject(new Error(stderr));
+        }
+      });
+    });
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
 });
 
 // 导出游戏包：'web' 或 'desktop'

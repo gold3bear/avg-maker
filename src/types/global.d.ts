@@ -40,6 +40,10 @@ declare global {
       readFile: (filePath: string) => Promise<string>;
       writeFile: (filePath: string, content: string) => Promise<boolean>;
       readDir: (dirPath: string) => Promise<FileNode[]>;
+      renameFile?: (filePath: string, newName: string) => Promise<boolean>;
+      deleteFile?: (filePath: string) => Promise<boolean>;
+      moveFile?: (src: string, dest: string) => Promise<boolean>;
+      createDirectory?: (dirPath: string) => Promise<boolean>;
       
       // File watching
       watchFiles: (paths: string[]) => Promise<boolean>;
@@ -47,6 +51,7 @@ declare global {
       
       // Ink compilation
       compileInk: (source: string, lintOnly?: boolean, sourceFilePath?: string) => Promise<unknown>;
+      compileProject?: (root: string) => Promise<unknown>;
       
       // Plugin system
       loadPlugins: () => Promise<PluginManifest[]>;
