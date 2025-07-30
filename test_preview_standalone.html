@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AVG Maker - 独立预览测试</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; 
+            padding: 0; 
+            background: #1e1e1e; 
+            color: white; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: #2d2d2d;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .status {
+            background: #333;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .success { background: #2d5016; }
+        .error { background: #5d1a1a; }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0080ff;
+        }
+        .preview-area {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            min-height: 300px;
+        }
+        .story-text {
+            margin-bottom: 16px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .choice-button {
+            display: block;
+            width: 100%;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            background: #3d3d3d;
+            border: 1px solid #555;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 14px;
+        }
+        .choice-button:hover {
+            background: #4d4d4d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 AVG Maker - 独立预览测试</h1>
+            <p>这是一个独立的测试页面，用于验证浏览器预览功能</p>
+        </div>
+
+        <div class="test-section">
+            <h2>🔧 连接测试</h2>
+            <button onclick="testConnection()">测试预览服务器连接</button>
+            <button onclick="testViteServer()">测试Vite开发服务器</button>
+            <div id="connection-status" class="status">点击按钮开始测试...</div>
+        </div>
+
+        <div class="test-section">
+            <h2>📝 故事测试</h2>
+            <button onclick="loadSampleStory()">加载示例故事</button>
+            <button onclick="testInkJS()">测试Ink.js库</button>
+            <div id="story-status" class="status">准备加载故事...</div>
+        </div>
+
+        <div class="preview-area" id="preview-area">
+            <div class="story-text">点击上方按钮开始测试预览功能</div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/inkjs@2.3.2/dist/ink.js"></script>
+    <script>
+        let currentStory = null;
+
+        // 测试预览服务器连接
+        async function testConnection() {
+            const statusEl = document.getElementById('connection-status');
+            statusEl.textContent = '正在测试预览服务器连接...';
+            statusEl.className = 'status';
+
+            try {
+                const response = await fetch('http://localhost:3001/api/current-file');
+                const data = await response.json();
+                
+                statusEl.textContent = `✅ 预览服务器连接成功! 当前文件: ${data.filePath || '无'}`;
+                statusEl.className = 'status success';
+                
+                return true;
+            } catch (error) {
+                statusEl.textContent = `❌ 预览服务器连接失败: ${error.message}`;
+                statusEl.className = 'status error';
+                
+                // 尝试测试预览页面
+                try {
+                    const pageResponse = await fetch('http://localhost:3001/preview');
+                    if (pageResponse.ok) {
+                        statusEl.textContent += ' (但预览页面可访问)';
+                    }
+                } catch (pageError) {
+                    statusEl.textContent += ' (预览页面也无法访问)';
+                }
+                
+                return false;
+            }
+        }
+
+        // 测试Vite开发服务器
+        async function testViteServer() {
+            const statusEl = document.getElementById('connection-status');
+            statusEl.textContent = '正在测试Vite开发服务器...';
+
+            try {
+                const response = await fetch('http://localhost:5173/');
+                if (response.ok) {
+                    statusEl.textContent = '✅ Vite开发服务器连接成功!';
+                    statusEl.className = 'status success';
+                } else {
+                    statusEl.textContent = `❌ Vite服务器响应错误: ${response.status}`;
+                    statusEl.className = 'status error';
+                }
+            } catch (error) {
+                statusEl.textContent = `❌ Vite服务器连接失败: ${error.message}`;
+                statusEl.className = 'status error';
+            }
+        }
+
+        // 测试Ink.js库
+        function testInkJS() {
+            const statusEl = document.getElementById('story-status');
+            
+            if (typeof inkjs !== 'undefined') {
+                statusEl.textContent = '✅ Ink.js库加载成功!';
+                statusEl.className = 'status success';
+                return true;
+            } else {
+                statusEl.textContent = '❌ Ink.js库未加载';
+                statusEl.className = 'status error';
+                return false;
+            }
+        }
+
+        // 加载示例故事
+        function loadSampleStory() {
+            const statusEl = document.getElementById('story-status');
+            const previewEl = document.getElementById('preview-area');
+
+            if (!testInkJS()) {
+                return;
+            }
+
+            try {
+                // 创建一个简单的示例故事JSON
+                const sampleStoryJson = {
+                    "inkVersion": 20,
+                    "root": [
+                        [
+                            "^欢迎使用AVG Maker浏览器预览！",
+                            "\n",
+                            "^这是一个示例故事，用于测试预览功能。",
+                            "\n",
+                            "*\t选择继续",
+                            "\t\t[",
+                            "^继续故事",
+                            "\n",
+                            "\t\t]",
+                            "\t\t->",
+                            "continue",
+                            "*\t选择结束",
+                            "\t\t[",
+                            "^结束预览",
+                            "\n",
+                            "\t\t]",
+                            "\t\t->",
+                            "end",
+                            "done",
+                            {"#f":5}
+                        ],
+                        "continue",
+                        [
+                            "^很好！这证明预览功能正常工作。",
+                            "\n",
+                            "^你可以看到故事文本和选择项都能正确显示。",
+                            "\n",
+                            "*\t[再试一次]",
+                            "\t\t->",
+                            "start",
+                            "*\t[结束]",
+                            "\t\t->",
+                            "end",
+                            "done",
+                            {"#f":5}
+                        ],
+                        "end",
+                        [
+                            "^感谢测试AVG Maker浏览器预览功能！",
+                            "\n",
+                            "^现在你可以在主应用中选择真实的.ink文件进行预览。",
+                            "\n",
+                            "end",
+                            {"#f":5}
+                        ],
+                        "start",
+                        [
+                            "->",
+                            "->",
+                            null
+                        ],
+                        "done",
+                        [
+                            "end",
+                            {"#f":5}
+                        ],
+                        "global decl",
+                        ["ev",{"^->":"start"},"/ev",{"temp=":"@"},"str",{"->":".^.s"},[{"#n":"g-0"}],"/str","/ev",{"*":".^.c-0","flg":2},{"s":["^start",{"->":"$r","var":true},null]}],
+                        "listDefs": {}
+                };
+
+                currentStory = new inkjs.Story(sampleStoryJson);
+                
+                statusEl.textContent = '✅ 示例故事加载成功!';
+                statusEl.className = 'status success';
+                
+                renderStory();
+                
+            } catch (error) {
+                statusEl.textContent = `❌ 示例故事加载失败: ${error.message}`;
+                statusEl.className = 'status error';
+                console.error('Story load error:', error);
+            }
+        }
+
+        // 渲染故事
+        function renderStory() {
+            const previewEl = document.getElementById('preview-area');
+            
+            if (!currentStory) {
+                previewEl.innerHTML = '<div class="story-text">没有加载故事</div>';
+                return;
+            }
+
+            try {
+                const output = [];
+                while (currentStory.canContinue) {
+                    const line = currentStory.Continue();
+                    if (line && line.trim()) {
+                        output.push(line.trim());
+                    }
+                }
+
+                let html = '';
+                
+                // 渲染文本
+                if (output.length > 0) {
+                    html += output.map(line => 
+                        `<div class="story-text">${escapeHtml(line)}</div>`
+                    ).join('');
+                }
+
+                // 渲染选择
+                if (currentStory.currentChoices && currentStory.currentChoices.length > 0) {
+                    currentStory.currentChoices.forEach((choice, index) => {
+                        html += `<button class="choice-button" onclick="makeChoice(${index})">${escapeHtml(choice.text)}</button>`;
+                    });
+                } else if (output.length === 0) {
+                    html = '<div class="story-text">📖 故事结束</div>';
+                }
+
+                previewEl.innerHTML = html;
+
+            } catch (error) {
+                console.error('Render error:', error);
+                previewEl.innerHTML = `<div class="story-text error">渲染错误: ${error.message}</div>`;
+            }
+        }
+
+        // 处理选择
+        function makeChoice(index) {
+            if (!currentStory || !currentStory.currentChoices[index]) {
+                return;
+            }
+
+            try {
+                currentStory.ChooseChoiceIndex(index);
+                renderStory();
+            } catch (error) {
+                console.error('Choice error:', error);
+                document.getElementById('preview-area').innerHTML = 
+                    `<div class="story-text error">选择处理错误: ${error.message}</div>`;
+            }
+        }
+
+        // HTML转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 页面加载完成后自动测试
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('AVG Maker Browser Preview Test - Ready');
+            
+            // 等待一下再自动测试连接
+            setTimeout(() => {
+                testConnection();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

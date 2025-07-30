@@ -31,7 +31,11 @@ contextBridge.exposeInMainWorld('inkAPI', {
 
   // Preview window controls
   openPreviewWindow: (filePath: string) => ipcRenderer.invoke('open-preview-window', filePath),
-  updatePreviewFile: (filePath: string) => ipcRenderer.invoke('update-preview-file', filePath),
+  updatePreviewFile: (filePath: string) => {
+    // 同时更新两种预览方式
+    ipcRenderer.invoke('update-preview-file', filePath); // Electron预览窗口
+    ipcRenderer.invoke('update-ssr-preview-file', filePath); // SSR浏览器预览
+  },
   onSetActiveFile: (callback: (filePath: string) => void) => {
     ipcRenderer.on('set-active-file', (_, filePath) => callback(filePath));
   },

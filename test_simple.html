@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Test</title>
+</head>  
+<body>
+    <h1>Testing Preview Server</h1>
+    <button onclick="testServer()">Test Server</button>
+    <div id="result"></div>
+    
+    <script>
+        async function testServer() {
+            document.getElementById('result').innerHTML = 'Testing...';
+            
+            try {
+                // Test current file API
+                const response = await fetch('http://localhost:3001/api/current-file');
+                const data = await response.json();
+                
+                document.getElementById('result').innerHTML = `
+                    <h3>API Test Results:</h3>
+                    <p>Status: ${response.status}</p>
+                    <p>Current file: ${data.filePath || 'None'}</p>
+                    <p>Timestamp: ${data.timestamp}</p>
+                    <a href="http://localhost:3001/preview" target="_blank">Open Preview Page</a>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <h3>Error:</h3>
+                    <p style="color: red;">${error.message}</p>
+                    <p>Make sure the development server is running!</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

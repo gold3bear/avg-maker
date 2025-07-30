@@ -1,6 +1,6 @@
 /// <reference path="../types/global.d.ts" />
 import React, { useEffect, useState } from 'react';
-import { Minus, Square, X, Sidebar, Layers, Search, Play } from 'lucide-react';
+import { Minus, Square, X, Sidebar, Layers, Search, Play, Globe, Copy } from 'lucide-react';
 import { useSave } from '../context/SaveContext';
 
 interface TitleBarProps {
@@ -55,6 +55,26 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   const handlePreview = () => {
     if (activeFile) {
       window.inkAPI?.openPreviewWindow?.(activeFile);
+    }
+  };
+
+  const handleBrowserPreview = () => {
+    if (activeFile) {
+      // 在浏览器中打开预览
+      const previewUrl = 'http://localhost:3001/preview';
+      if (typeof window !== 'undefined' && window.open) {
+        window.open(previewUrl, '_blank');
+      }
+    }
+  };
+
+  const copyPreviewUrl = () => {
+    const previewUrl = 'http://localhost:3001/preview';
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(previewUrl).then(() => {
+        // 可以添加一个提示
+        console.log('Preview URL copied to clipboard:', previewUrl);
+      });
     }
   };
 
@@ -153,6 +173,27 @@ export const TitleBar: React.FC<TitleBarProps> = ({
           onClick={handlePreview}
         >
           <Play size={14} style={{ color: 'var(--color-text)' }} />
+        </button>
+
+        {/* Browser Preview button */}
+        <button
+          className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+          style={{ WebkitAppRegion: 'no-drag' }}
+          title="Open in Browser (http://localhost:3001/preview)"
+          onClick={handleBrowserPreview}
+          disabled={!activeFile}
+        >
+          <Globe size={14} style={{ color: activeFile ? 'var(--color-text)' : 'var(--color-textMuted)' }} />
+        </button>
+
+        {/* Copy Preview URL button */}
+        <button
+          className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+          style={{ WebkitAppRegion: 'no-drag' }}
+          title="Copy Preview URL"
+          onClick={copyPreviewUrl}
+        >
+          <Copy size={14} style={{ color: 'var(--color-text)' }} />
         </button>
 
         {/* Windows 风格的窗口控制按钮 */}

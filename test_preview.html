@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Preview Server</title>
+</head>
+<body>
+    <h1>Testing Preview Server</h1>
+    <div id="status">Loading...</div>
+    <script>
+        async function testAPI() {
+            try {
+                const response = await fetch('http://localhost:3001/api/current-file');
+                const data = await response.json();
+                document.getElementById('status').innerHTML = 
+                    `<pre>API Response: ${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                document.getElementById('status').innerHTML = 
+                    `<pre>Error: ${error.message}</pre>`;
+            }
+        }
+        
+        // Test the API
+        testAPI();
+        
+        // Test opening preview page
+        setTimeout(() => {
+            const link = document.createElement('a');
+            link.href = 'http://localhost:3001/preview';
+            link.target = '_blank';
+            link.textContent = 'Open Preview Page';
+            document.body.appendChild(link);
+        }, 1000);
+    </script>
+</body>
+</html>

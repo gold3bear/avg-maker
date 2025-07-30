@@ -136,8 +136,32 @@ const AppContent: React.FC = () => {
 
   // 更新独立预览窗口中的文件
   React.useEffect(() => {
+    console.log('🔄 App: activeFile changed:', activeFile);
     if (activeFile) {
-      window.inkAPI.updatePreviewFile?.(activeFile);
+      console.log('📤 App: Updating preview file:', activeFile);
+      // 优先使用统一API，回退到直接调用
+      import('./api').then(({ api }) => {
+        console.log('✅ App: Unified API loaded, calling updatePreviewFile');
+        if (api.updatePreviewFile) {
+          api.updatePreviewFile(activeFile).then(() => {
+            console.log('✅ App: Preview file updated successfully via unified API');
+          }).catch((error) => {
+            console.warn('❌ App: Failed to update preview file via unified API:', error);
+            // 回退到旧API
+            console.log('🔄 App: Falling back to old API');
+            window.inkAPI.updatePreviewFile?.(activeFile);
+          });
+        } else {
+          console.log('⚠️ App: updatePreviewFile not available in unified API, using old API');
+          window.inkAPI.updatePreviewFile?.(activeFile);
+        }
+      }).catch((error) => {
+        // 统一API加载失败，使用旧API
+        console.log('❌ App: Unified API failed to load, using old API:', error);
+        window.inkAPI.updatePreviewFile?.(activeFile);
+      });
+    } else {
+      console.log('⚠️ App: No activeFile to update preview');
     }
   }, [activeFile]);
 
