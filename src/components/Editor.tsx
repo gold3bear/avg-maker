@@ -158,9 +158,17 @@ export const Editor: React.FC<EditorProps> = ({ filePath, goToLine }) => {
         const markers: Marker[] = await lintInk(val, currentFilePath);
         console.log('Editor: Received markers from lintInk:', markers.length, markers);
         
-        const model = editorRef.current.getModel();
+        let model = editorRef.current.getModel();
+        if (!model && monacoRef.current) {
+          const models = monacoRef.current.editor.getModels();
+          if (models.length > 0) {
+            model = models[0];
+            editorRef.current.setModel(model);
+            console.log('Editor: Recovered missing model from Monaco models list');
+          }
+        }
         if (!model) {
-          console.error('Editor: No model available for setting markers');
+          console.error('Editor: No model available for setting markers after attempt to recover');
           return;
         }
         
