@@ -151,6 +151,10 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const handleToggleSettings = () => {
+    setShowModelConfig(true);
+  };
+
   // 获取当前选中的模型配置
   const getCurrentModel = (): AIModelConfig | undefined => {
     if (!selectedModelId) return undefined;
@@ -644,10 +648,15 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
       {/* 消息列表 */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
-          <AIMessage key={message.id} message={message} />
+          <AIMessage key={message.id} message={message} onToggleSettings={handleToggleSettings} />
         ))}
-        
-        {isAiThinking && <AIMessage message={{ id: 0, type: 'ai' as const, content: '', timestamp: new Date() }} />}
+
+        {isAiThinking && (
+          <AIMessage
+            message={{ id: 0, type: 'ai' as const, content: '', timestamp: new Date() }}
+            onToggleSettings={handleToggleSettings}
+          />
+        )}
         <div ref={messagesEndRef} />
       </div>
 

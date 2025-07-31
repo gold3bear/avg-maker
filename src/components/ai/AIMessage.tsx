@@ -23,6 +23,7 @@ export interface AIMessageData {
 
 interface AIMessageProps {
   message: AIMessageData;
+  onToggleSettings?: () => void;
 }
 
 const formatTime = (date: Date) => {
@@ -97,7 +98,7 @@ const AIThinkingIndicator = () => (
   </div>
 );
 
-export const AIMessage: React.FC<AIMessageProps> = ({ message }) => {
+export const AIMessage: React.FC<AIMessageProps> = ({ message, onToggleSettings }) => {
   const [copiedCode, setCopiedCode] = useState<number | null>(null);
   const isAI = message.type === 'ai';
   const isUser = message.type === 'user';
@@ -160,7 +161,10 @@ export const AIMessage: React.FC<AIMessageProps> = ({ message }) => {
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       {isAI && (
-        <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0 mr-3">
+        <div
+          className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0 mr-3 cursor-pointer"
+          onClick={onToggleSettings}
+        >
           <Bot size={16} className="text-white" />
         </div>
       )}
