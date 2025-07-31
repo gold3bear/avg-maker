@@ -439,7 +439,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="w-96 bg-gray-800 border-l border-gray-700 flex flex-col h-full">
+    <div className="bg-gray-800 flex flex-col h-full w-full">
       {/* 面板头部 */}
       <div className="p-4 border-b border-gray-700 flex items-center justify-between">
         <div className="flex items-center space-x-3">

@@ -29,6 +29,10 @@ const AppContent: React.FC = () => {
   const [view, setView] = useState<'preview' | 'graph'>('preview');
   const [activeTab, setActiveTab] = useState<SidebarTab>('explorer');
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(256);
+  const [editorWidth, setEditorWidth] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth * 0.66 : 800
+  );
   const [pluginCtx, setPluginCtx] = useState<{
     manifest: any;
     params?: any;
@@ -83,13 +87,49 @@ const AppContent: React.FC = () => {
     selectFile(filePath);
   }, [appMode, selectFile]);
 
+  const handleSidebarResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+    const onMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.min(Math.max(startWidth + e.clientX - startX, 150), 600);
+      setSidebarWidth(newWidth);
+    };
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  const handleEditorResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = editorWidth;
+    const onMouseMove = (e: MouseEvent) => {
+      const containerWidth = window.innerWidth - (sidebarVisible ? sidebarWidth + 48 : 0);
+      const maxWidth = containerWidth - 200;
+      const newWidth = Math.min(Math.max(startWidth + e.clientX - startX, 200), maxWidth);
+      setEditorWidth(newWidth);
+    };
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
   // VS Code风格的状态管理
   const workspaceState = useWorkspaceState({
     projectPath,
     activeFile,
     view,
     activeTab,
-    sidebarVisible
+    sidebarVisible,
+    sidebarWidth,
+    editorWidth
   });
 
   // 使用ref保存最新状态，避免在beforeunload时状态被重置
@@ -98,7 +138,9 @@ const AppContent: React.FC = () => {
     activeFile,
     view,
     activeTab,
-    sidebarVisible
+    sidebarVisible,
+    sidebarWidth,
+    editorWidth
   });
 
   // 更新最新状态ref并立即保存重要状态变化
@@ -108,7 +150,9 @@ const AppContent: React.FC = () => {
       activeFile,
       view,
       activeTab,
-      sidebarVisible
+      sidebarVisible,
+      sidebarWidth,
+      editorWidth
     };
     
     // 当重要状态变化时立即保存到sessionStorage（恢复完成后）
@@ -119,6 +163,8 @@ const AppContent: React.FC = () => {
         view,
         activeTab,
         sidebarVisible,
+        sidebarWidth,
+        editorWidth,
         timestamp: Date.now()
       };
       
@@ -132,7 +178,7 @@ const AppContent: React.FC = () => {
     } else if (!isRecoveryCompleteRef.current) {
       console.log('⏸️ App: 恢复未完成，跳过立即保存:', { projectPath, activeFile });
     }
-  }, [projectPath, activeFile, view, activeTab, sidebarVisible]);
+  }, [projectPath, activeFile, view, activeTab, sidebarVisible, sidebarWidth, editorWidth]);
 
   // 更新独立预览窗口中的文件
   React.useEffect(() => {
@@ -233,6 +279,8 @@ const AppContent: React.FC = () => {
           view,
           activeTab,
           sidebarVisible,
+          sidebarWidth,
+          editorWidth,
           timestamp: Date.now()
         };
         
@@ -595,6 +643,8 @@ const AppContent: React.FC = () => {
           if (appState.view) setView(appState.view);
           if (appState.activeTab) setActiveTab(appState.activeTab as SidebarTab);
           if (appState.sidebarVisible !== undefined) setSidebarVisible(appState.sidebarVisible);
+          if (appState.sidebarWidth !== undefined) setSidebarWidth(appState.sidebarWidth);
+          if (appState.editorWidth !== undefined) setEditorWidth(appState.editorWidth);
           
           // 特别处理projectPath恢复 - 使用loadProjectPath
           if (appState.projectPath && appState.projectPath !== projectPath) {
@@ -645,6 +695,8 @@ const AppContent: React.FC = () => {
           setView(states.ui.view || 'preview');
           setActiveTab(states.ui.activeTab || 'explorer');
           setSidebarVisible(states.ui.sidebarVisible !== undefined ? states.ui.sidebarVisible : true);
+          if (states.ui.sidebarWidth !== undefined) setSidebarWidth(states.ui.sidebarWidth);
+          if (states.ui.editorWidth !== undefined) setEditorWidth(states.ui.editorWidth);
         }
         
         // 恢复编辑器状态 (包括从主崩溃恢复数据中获取的)
@@ -775,6 +827,8 @@ const AppContent: React.FC = () => {
         setView(appState.view || 'preview');
         setActiveTab((appState.activeTab as SidebarTab) || 'explorer');
         setSidebarVisible(appState.sidebarVisible !== undefined ? appState.sidebarVisible : true);
+        if (appState.sidebarWidth !== undefined) setSidebarWidth(appState.sidebarWidth);
+        if (appState.editorWidth !== undefined) setEditorWidth(appState.editorWidth);
         
         // 恢复项目路径
         if (appState.projectPath && appState.projectPath !== projectPath) {
@@ -915,7 +969,7 @@ const AppContent: React.FC = () => {
     const interval = setInterval(saveState, 10000);
 
     return () => clearInterval(interval);
-  }, [projectPath, activeFile, view, activeTab, sidebarVisible]);
+  }, [projectPath, activeFile, view, activeTab, sidebarVisible, sidebarWidth, editorWidth]);
 
   // 处理崩溃恢复
   const handleCrashRestore = async (restoreFiles: boolean, restoreProject: boolean) => {
@@ -931,10 +985,12 @@ const AppContent: React.FC = () => {
       if (restoreProject && recoveryData.appState) {
         const appState = recoveryData.appState;
         console.log('🔄 恢复项目状态:', appState);
-        
+
         setView(appState.view || 'preview');
         setActiveTab((appState.activeTab as SidebarTab) || 'explorer');
         setSidebarVisible(appState.sidebarVisible !== undefined ? appState.sidebarVisible : true);
+        if (appState.sidebarWidth !== undefined) setSidebarWidth(appState.sidebarWidth);
+        if (appState.editorWidth !== undefined) setEditorWidth(appState.editorWidth);
         
         // 恢复项目路径
         if (appState.projectPath && appState.projectPath !== projectPath) {
@@ -1066,69 +1122,92 @@ const AppContent: React.FC = () => {
         {/* 正常模式和崩溃恢复模式 */}
         {(appMode === 'normal' || appMode === 'crash-recovery') && (
           <>
-            {/* 左侧：活动栏 */}
-            {sidebarVisible && <ActivityBar activeTab={activeTab} onTabChange={setActiveTab} />}
-
-            {/* 侧边栏 */}
-            {sidebarVisible && activeTab === 'explorer' && <ProjectExplorer onSelect={selectFile} />}
-
-            {sidebarVisible && activeTab === 'bot' && (
-              <AIChatPanel 
-                isOpen={true}
-                onToggle={() => {}} // 空函数，因为面板显示状态由ActivityBar控制
-                projectContext={{currentFile: activeFile, projectName: projectPath ? projectPath.split(/[/\\]/).pop() : ''}} 
-              />
+            {/* 左侧：活动栏和侧边栏 */}
+            {sidebarVisible && (
+              <>
+                <ActivityBar activeTab={activeTab} onTabChange={setActiveTab} />
+                <div
+                  className="flex flex-col relative flex-shrink-0 h-full"
+                  style={{
+                    width: sidebarWidth,
+                    backgroundColor: 'var(--color-sidebarBackground)',
+                    color: 'var(--color-sidebarForeground)'
+                  }}
+                >
+                  {activeTab === 'explorer' && <ProjectExplorer onSelect={selectFile} />}
+                  {activeTab === 'bot' && (
+                    <AIChatPanel
+                      isOpen={true}
+                      onToggle={() => {}}
+                      projectContext={{
+                        currentFile: activeFile,
+                        projectName: projectPath ? projectPath.split(/[/\\]/).pop() : ''
+                      }}
+                    />
+                  )}
+                  <div
+                    className="absolute top-0 right-0 w-1 h-full cursor-col-resize"
+                    style={{ backgroundColor: 'var(--color-sidebarBorder)' }}
+                    onMouseDown={handleSidebarResizeStart}
+                  />
+                </div>
+              </>
             )}
-
 
             {/* 右侧：主区域 */}
             <div className="flex-1 flex flex-col overflow-hidden">
-          {/* 顶部工具栏 */}
-          <Toolbar
-            view={view}
-            onViewChange={setView}
-            onOpenProject={openProject}
-            onExportWeb={() => window.inkAPI.exportGame('web')}
-            onExportDesktop={() => window.inkAPI.exportGame('desktop')}
-          />
-
-          {/* 内容区：分栏布局 */}
-          <div className="flex flex-1 overflow-hidden">
-            {/* 编辑器区域 */}
-            <div
-              className="w-2/3 h-full overflow-hidden"
-              style={{
-                borderRight: `1px solid var(--color-border)`,
-                backgroundColor: 'var(--color-editorBackground)',
-              }}
-            >
-              <Editor
-                filePath={activeFile}
-                onRunPlugin={(id, params) => {
-                  const manifest = plugins.find((p) => p.id === id);
-                  if (manifest) setPluginCtx({ manifest, params });
-                }}
+              {/* 顶部工具栏 */}
+              <Toolbar
+                view={view}
+                onViewChange={setView}
+                onOpenProject={openProject}
+                onExportWeb={() => window.inkAPI.exportGame('web')}
+                onExportDesktop={() => window.inkAPI.exportGame('desktop')}
               />
-            </div>
 
-            {/* 预览 / 节点图 / 插件宿主 */}
-            <div
-              className="w-1/3 relative overflow-hidden"
-              style={{ backgroundColor: 'var(--color-surface)' }}
-            >
-              {pluginCtx ? (
-                <PluginHost
-                  plugin={pluginCtx.manifest}
-                  params={pluginCtx.params}
-                  onClose={() => setPluginCtx(null)}
+              {/* 内容区：分栏布局 */}
+              <div className="flex flex-1 overflow-hidden">
+                {/* 编辑器区域 */}
+                <div
+                  className="h-full overflow-hidden flex-shrink-0"
+                  style={{
+                    width: editorWidth,
+                    borderRight: `1px solid var(--color-border)`,
+                    backgroundColor: 'var(--color-editorBackground)'
+                  }}
+                >
+                  <Editor
+                    filePath={activeFile}
+                    onRunPlugin={(id, params) => {
+                      const manifest = plugins.find((p) => p.id === id);
+                      if (manifest) setPluginCtx({ manifest, params });
+                    }}
+                  />
+                </div>
+                <div
+                  className="w-1 cursor-col-resize flex-shrink-0"
+                  style={{ backgroundColor: 'var(--color-border)' }}
+                  onMouseDown={handleEditorResizeStart}
                 />
-              ) : view === 'graph' ? (
-                <NodeGraph filePath={activeFile} />
-              ) : (
-                <Preview filePath={activeFile} />
-              )}
-            </div>
-          </div>
+
+                {/* 预览 / 节点图 / 插件宿主 */}
+                <div
+                  className="relative overflow-hidden flex-1"
+                  style={{ backgroundColor: 'var(--color-surface)' }}
+                >
+                  {pluginCtx ? (
+                    <PluginHost
+                      plugin={pluginCtx.manifest}
+                      params={pluginCtx.params}
+                      onClose={() => setPluginCtx(null)}
+                    />
+                  ) : view === 'graph' ? (
+                    <NodeGraph filePath={activeFile} />
+                  ) : (
+                    <Preview filePath={activeFile} />
+                  )}
+                </div>
+              </div>
             </div>
           </>
         )}
