@@ -1,6 +1,6 @@
 // electron/main.ts
 
-import { app, BrowserWindow, ipcMain, dialog, session, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, session, shell, net } from 'electron';
 import { dirname, join, basename } from 'path';
 import { spawn, spawnSync } from 'child_process';
 import fs from 'fs';
@@ -27,9 +27,55 @@ const __dirname = dirname(__filename);
 let mainWindow: BrowserWindow | null = null;
 let previewWindow: BrowserWindow | null = null;
 
+// 安全的日志输出函数，避免EPIPE错误
+const safeLog = (message: string, ...args: any[]) => {
+  try {
+    console.log(message, ...args);
+  } catch (error) {
+    // 忽略EPIPE等管道错误，避免主进程崩溃
+    if (error instanceof Error && !error.message.includes('EPIPE')) {
+      // 只有非EPIPE错误才重新抛出
+      console.error('Logging error:', error);
+    }
+  }
+};
+
+const safeError = (message: string, ...args: any[]) => {
+  try {
+    console.error(message, ...args);
+  } catch (error) {
+    // 忽略EPIPE等管道错误
+    if (error instanceof Error && !error.message.includes('EPIPE')) {
+      console.error('Error logging error:', error);
+    }
+  }
+};
+
 // 预览服务器相关变量
 let previewServer: any = null;
 let currentPreviewFile: string | null = null;
+
+// 全局异常处理，防止主进程崩溃
+process.on('uncaughtException', (error) => {
+  if (error.message.includes('EPIPE') || error.message.includes('ECONNRESET')) {
+    // 忽略管道相关的错误，这些通常是日志输出或网络连接问题
+    safeLog('🔧 Main: Ignoring EPIPE/ECONNRESET error:', error.message);
+    return;
+  }
+  
+  safeError('🚨 Main: Uncaught Exception:', error);
+  
+  // 对于其他严重错误，记录日志但不退出应用
+  if (!app.isPackaged) {
+    // 开发环境下可以选择退出
+    safeError('🚨 Main: Development mode - not exiting due to uncaught exception');
+  }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  safeError('🚨 Main: Unhandled Rejection at:', promise, 'reason:', reason);
+  // 不退出应用，只记录日志
+});
 
 // SSR预览页面生成函数
 async function generateSSRPreviewPage(): Promise<string> {
@@ -441,7 +487,7 @@ function createWindow() {
 
   // 监听ready-to-show事件，在页面准备好后再显示窗口
   mainWindow.once('ready-to-show', () => {
-    console.log('🚪 Main: 窗口准备完成，显示窗口');
+    safeLog('🚪 Main: 窗口准备完成，显示窗口');
     if (mainWindow && !mainWindow.isDestroyed()) {
       // 可选：添加淡入效果（仅macOS）
       if (process.platform === 'darwin') {
@@ -565,20 +611,20 @@ function createWindow() {
   let isHandlingClose = false; // 防止重复处理关闭事件
   
   mainWindow.on('close', (event) => {
-    console.log('🚪 Main: 窗口关闭事件触发, isQuitting =', isQuitting, ', isHandlingClose =', isHandlingClose);
+    safeLog('🚪 Main: 窗口关闭事件触发, isQuitting =', isQuitting, ', isHandlingClose =', isHandlingClose);
     
     if (isQuitting) {
-      console.log('🚪 Main: 已确认关闭，允许关闭');
+      safeLog('🚪 Main: 已确认关闭，允许关闭');
       return; // 已经确认关闭，允许关闭
     }
     
     if (isHandlingClose) {
-      console.log('🚪 Main: 已经在处理关闭事件，阻止重复处理');
+      safeLog('🚪 Main: 已经在处理关闭事件，阻止重复处理');
       event.preventDefault();
       return;
     }
     
-    console.log('🚪 Main: 阻止默认关闭，通知渲染进程检查未保存文件...');
+    safeLog('🚪 Main: 阻止默认关闭，通知渲染进程检查未保存文件...');
     isHandlingClose = true;
     
     // 阻止默认关闭行为
@@ -586,10 +632,10 @@ function createWindow() {
     
     // 通知渲染进程检查未保存的文件
     try {
-      console.log('🚪 Main: 发送app-will-close事件到渲染进程');
+      safeLog('🚪 Main: 发送app-will-close事件到渲染进程');
       mainWindow?.webContents.send('app-will-close');
     } catch (error) {
-      console.log('🚪 Main: 发送关闭通知失败:', error);
+      safeLog('🚪 Main: 发送关闭通知失败:', error);
       // 如果发送失败，直接关闭
       isHandlingClose = false;
       isQuitting = true;
@@ -1230,5 +1276,657 @@ ipcMain.handle('show-in-explorer', async (_, filePath: string) => {
   } catch (error) {
     console.error('show-in-explorer: Error showing item:', filePath, error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+// AI模型配置存储管理
+const getProjectAIConfigPath = () => {
+  // 项目目录的 .ai-config 文件夹（优先级最高）
+  const projectRoot = app.getAppPath();
+  const projectConfigDir = join(projectRoot, '.ai-config');
+  return {
+    dir: projectConfigDir,
+    models: join(projectConfigDir, 'ai-models.json'),
+    selectedModel: join(projectConfigDir, 'selected-ai-model.txt'),
+    storageConfig: join(projectConfigDir, 'storage-config.json')
+  };
+};
+
+const getAIConfigPath = () => {
+  if (!app.isPackaged) {
+    // 开发环境：使用项目根目录的 .ai-config 文件夹
+    const projectRoot = app.getAppPath();
+    const devConfigDir = join(projectRoot, '.ai-config');
+    if (!fs.existsSync(devConfigDir)) {
+      fs.mkdirSync(devConfigDir, { recursive: true });
+    }
+    return join(devConfigDir, 'ai-models.json');
+  } else {
+    // 生产环境：使用用户数据目录
+    return join(app.getPath('userData'), 'ai-models.json');
+  }
+};
+
+const getSelectedModelPath = () => {
+  if (!app.isPackaged) {
+    // 开发环境：使用项目根目录的 .ai-config 文件夹
+    const projectRoot = app.getAppPath();
+    const devConfigDir = join(projectRoot, '.ai-config');
+    if (!fs.existsSync(devConfigDir)) {
+      fs.mkdirSync(devConfigDir, { recursive: true });
+    }
+    return join(devConfigDir, 'selected-ai-model.txt');
+  } else {
+    // 生产环境：使用用户数据目录
+    return join(app.getPath('userData'), 'selected-ai-model.txt');
+  }
+};
+
+// 保存AI模型配置
+ipcMain.handle('save-ai-models', async (_, models: any[]) => {
+  try {
+    const configPath = getAIConfigPath();
+    await fs.promises.writeFile(configPath, JSON.stringify(models, null, 2), 'utf-8');
+    safeLog('💾 AI models saved to:', configPath);
+    return { success: true };
+  } catch (error) {
+    safeError('💾 Failed to save AI models:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error) 
+    };
+  }
+});
+
+// 读取AI模型配置（优先级加载）
+ipcMain.handle('load-ai-models', async () => {
+  try {
+    const projectPaths = getProjectAIConfigPath();
+    
+    // 1. 优先尝试从项目 .ai-config 目录加载
+    if (fs.existsSync(projectPaths.models)) {
+      try {
+        const content = await fs.promises.readFile(projectPaths.models, 'utf-8');
+        const models = JSON.parse(content);
+        safeLog('💾 AI models loaded from project .ai-config:', projectPaths.models, `(${models.length} models)`);
+        return { success: true, data: models, source: 'project' };
+      } catch (error) {
+        safeError('💾 Failed to parse project AI models config:', error);
+      }
+    }
+    
+    // 2. 回退到默认路径（用户数据目录）
+    const fallbackPath = getAIConfigPath();
+    if (fs.existsSync(fallbackPath)) {
+      try {
+        const content = await fs.promises.readFile(fallbackPath, 'utf-8');
+        const models = JSON.parse(content);
+        safeLog('💾 AI models loaded from fallback path:', fallbackPath, `(${models.length} models)`);
+        return { success: true, data: models, source: 'fallback' };
+      } catch (error) {
+        safeError('💾 Failed to parse fallback AI models config:', error);
+      }
+    }
+    
+    safeLog('💾 No AI models config file found, returning empty array');
+    return { success: true, data: [], source: 'none' };
+  } catch (error) {
+    safeError('💾 Failed to load AI models:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error),
+      data: [] 
+    };
+  }
+});
+
+// 保存选中的AI模型ID
+ipcMain.handle('save-selected-ai-model', async (_, modelId: string) => {
+  try {
+    const modelPath = getSelectedModelPath();
+    await fs.promises.writeFile(modelPath, modelId, 'utf-8');
+    safeLog('💾 Selected AI model saved:', modelId);
+    return { success: true };
+  } catch (error) {
+    safeError('💾 Failed to save selected AI model:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error) 
+    };
+  }
+});
+
+// 读取选中的AI模型ID（优先级加载）
+ipcMain.handle('load-selected-ai-model', async () => {
+  try {
+    const projectPaths = getProjectAIConfigPath();
+    
+    // 1. 优先尝试从项目 .ai-config 目录加载
+    if (fs.existsSync(projectPaths.selectedModel)) {
+      try {
+        const modelId = await fs.promises.readFile(projectPaths.selectedModel, 'utf-8');
+        safeLog('💾 Selected AI model loaded from project .ai-config:', modelId.trim());
+        return { success: true, data: modelId.trim(), source: 'project' };
+      } catch (error) {
+        safeError('💾 Failed to read project selected AI model:', error);
+      }
+    }
+    
+    // 2. 回退到默认路径
+    const fallbackPath = getSelectedModelPath();
+    if (fs.existsSync(fallbackPath)) {
+      try {
+        const modelId = await fs.promises.readFile(fallbackPath, 'utf-8');
+        safeLog('💾 Selected AI model loaded from fallback path:', modelId.trim());
+        return { success: true, data: modelId.trim(), source: 'fallback' };
+      } catch (error) {
+        safeError('💾 Failed to read fallback selected AI model:', error);
+      }
+    }
+    
+    safeLog('💾 No selected AI model file found');
+    return { success: true, data: '', source: 'none' };
+  } catch (error) {
+    safeError('💾 Failed to load selected AI model:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error),
+      data: '' 
+    };
+  }
+});
+
+// 存储方案配置管理
+const getStorageConfigPath = () => {
+  if (!app.isPackaged) {
+    const projectRoot = app.getAppPath();
+    const devConfigDir = join(projectRoot, '.ai-config');
+    if (!fs.existsSync(devConfigDir)) {
+      fs.mkdirSync(devConfigDir, { recursive: true });
+    }
+    return join(devConfigDir, 'storage-config.json');
+  } else {
+    return join(app.getPath('userData'), 'storage-config.json');
+  }
+};
+
+// 获取存储配置
+ipcMain.handle('get-storage-config', async () => {
+  try {
+    const configPath = getStorageConfigPath();
+    if (!fs.existsSync(configPath)) {
+      // 默认配置：开发环境使用localStorage + 文件双存储，生产环境使用文件存储
+      const defaultConfig = {
+        storageType: !app.isPackaged ? 'hybrid' : 'file', // 'localStorage', 'file', 'hybrid'
+        enableLocalStorageSync: !app.isPackaged, // 是否同步到localStorage（用于开发者工具查看）
+      };
+      await fs.promises.writeFile(configPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
+      safeLog('💾 Created default storage config:', defaultConfig);
+      return { success: true, data: defaultConfig };
+    }
+    
+    const content = await fs.promises.readFile(configPath, 'utf-8');
+    const config = JSON.parse(content);
+    safeLog('💾 Loaded storage config:', config);
+    return { success: true, data: config };
+  } catch (error) {
+    safeError('💾 Failed to get storage config:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+      data: { storageType: 'file', enableLocalStorageSync: false }
+    };
+  }
+});
+
+// 保存存储配置
+ipcMain.handle('save-storage-config', async (_, config: any) => {
+  try {
+    const configPath = getStorageConfigPath();
+    await fs.promises.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+    safeLog('💾 Storage config saved:', config);
+    return { success: true };
+  } catch (error) {
+    safeError('💾 Failed to save storage config:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+
+// AI配置验证和调试工具
+ipcMain.handle('verify-ai-storage', async () => {
+  try {
+    const configPath = getAIConfigPath();
+    const selectedModelPath = getSelectedModelPath();
+    
+    const verification = {
+      timestamp: new Date().toISOString(),
+      configFile: {
+        path: configPath,
+        exists: fs.existsSync(configPath),
+        readable: false,
+        content: null as any,
+        size: 0
+      },
+      selectedModelFile: {
+        path: selectedModelPath,
+        exists: fs.existsSync(selectedModelPath),
+        readable: false,
+        content: null as any,
+        size: 0
+      },
+      userDataPath: app.getPath('userData'),
+      appName: app.getName(),
+      isPackaged: app.isPackaged
+    };
+
+    // 检查配置文件
+    if (verification.configFile.exists) {
+      try {
+        const content = await fs.promises.readFile(configPath, 'utf-8');
+        verification.configFile.readable = true;
+        verification.configFile.content = JSON.parse(content);
+        verification.configFile.size = content.length;
+      } catch (error) {
+        verification.configFile.readable = false;
+        verification.configFile.content = `Error reading file: ${error}`;
+      }
+    }
+
+    // 检查选中模型文件
+    if (verification.selectedModelFile.exists) {
+      try {
+        const content = await fs.promises.readFile(selectedModelPath, 'utf-8');
+        verification.selectedModelFile.readable = true;
+        verification.selectedModelFile.content = content.trim();
+        verification.selectedModelFile.size = content.length;
+      } catch (error) {
+        verification.selectedModelFile.readable = false;
+        verification.selectedModelFile.content = `Error reading file: ${error}`;
+      }
+    }
+
+    safeLog('🔍 AI Storage Verification:', JSON.stringify(verification, null, 2));
+    
+    return {
+      success: true,
+      data: verification
+    };
+  } catch (error) {
+    safeError('🔍 AI storage verification failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+
+// 清除AI配置数据（用于测试）
+ipcMain.handle('clear-ai-storage', async () => {
+  try {
+    const configPath = getAIConfigPath();
+    const selectedModelPath = getSelectedModelPath();
+    
+    const results = {
+      configFile: { deleted: false, error: null as string | null },
+      selectedModelFile: { deleted: false, error: null as string | null }
+    };
+
+    // 删除配置文件
+    if (fs.existsSync(configPath)) {
+      try {
+        await fs.promises.unlink(configPath);
+        results.configFile.deleted = true;
+        safeLog('🗑️ Deleted AI config file:', configPath);
+      } catch (error) {
+        results.configFile.error = error instanceof Error ? error.message : String(error);
+      }
+    }
+
+    // 删除选中模型文件
+    if (fs.existsSync(selectedModelPath)) {
+      try {
+        await fs.promises.unlink(selectedModelPath);
+        results.selectedModelFile.deleted = true;
+        safeLog('🗑️ Deleted selected model file:', selectedModelPath);
+      } catch (error) {
+        results.selectedModelFile.error = error instanceof Error ? error.message : String(error);
+      }
+    }
+
+    return {
+      success: true,
+      data: results
+    };
+  } catch (error) {
+    safeError('🗑️ Failed to clear AI storage:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+
+// 会话历史管理
+const getChatSessionsPath = () => {
+  const projectPaths = getProjectAIConfigPath();
+  // 优先使用项目配置目录
+  if (fs.existsSync(projectPaths.dir)) {
+    return join(projectPaths.dir, 'chat-sessions.json');
+  } else {
+    // 回退到用户数据目录
+    return join(app.getPath('userData'), 'chat-sessions.json');
+  }
+};
+
+// 保存会话
+ipcMain.handle('save-chat-session', async (_, session: any) => {
+  try {
+    const sessionsPath = getChatSessionsPath();
+    let sessions: any[] = [];
+    
+    // 确保目录存在
+    const dir = dirname(sessionsPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    // 读取现有会话
+    if (fs.existsSync(sessionsPath)) {
+      const content = await fs.promises.readFile(sessionsPath, 'utf-8');
+      sessions = JSON.parse(content);
+    }
+    
+    // 更新或添加会话
+    const index = sessions.findIndex(s => s.id === session.id);
+    if (index >= 0) {
+      sessions[index] = session;
+    } else {
+      sessions.unshift(session); // 新会话放在前面
+    }
+    
+    // 限制保存的会话数量（最多100个）
+    if (sessions.length > 100) {
+      sessions = sessions.slice(0, 100);
+    }
+    
+    // 保存到文件
+    await fs.promises.writeFile(sessionsPath, JSON.stringify(sessions, null, 2), 'utf-8');
+    safeLog('💬 Chat session saved:', session.id);
+    return { success: true };
+  } catch (error) {
+    safeError('💬 Failed to save chat session:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error) 
+    };
+  }
+});
+
+// 加载所有会话
+ipcMain.handle('load-chat-sessions', async () => {
+  try {
+    const sessionsPath = getChatSessionsPath();
+    if (!fs.existsSync(sessionsPath)) {
+      return { success: true, data: [] };
+    }
+    
+    const content = await fs.promises.readFile(sessionsPath, 'utf-8');
+    const sessions = JSON.parse(content);
+    
+    // 按更新时间排序（最新的在前面）
+    sessions.sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    
+    safeLog('💬 Loaded', sessions.length, 'chat sessions');
+    return { success: true, data: sessions };
+  } catch (error) {
+    safeError('💬 Failed to load chat sessions:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error),
+      data: [] 
+    };
+  }
+});
+
+// 删除会话
+ipcMain.handle('delete-chat-session', async (_, sessionId: string) => {
+  try {
+    const sessionsPath = getChatSessionsPath();
+    if (!fs.existsSync(sessionsPath)) {
+      return { success: true };
+    }
+    
+    const content = await fs.promises.readFile(sessionsPath, 'utf-8');
+    let sessions = JSON.parse(content);
+    
+    // 删除指定会话
+    sessions = sessions.filter((s: any) => s.id !== sessionId);
+    
+    // 保存更新后的会话列表
+    await fs.promises.writeFile(sessionsPath, JSON.stringify(sessions, null, 2), 'utf-8');
+    safeLog('💬 Chat session deleted:', sessionId);
+    return { success: true };
+  } catch (error) {
+    safeError('💬 Failed to delete chat session:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : String(error) 
+    };
+  }
+});
+
+// 检查代理设置（用于调试）
+ipcMain.handle('get-proxy-info', async () => {
+  try {
+    // 获取当前session的代理设置
+    const proxyInfo = await session.defaultSession.resolveProxy('https://www.google.com');
+    safeLog('🌐 Current proxy settings:', proxyInfo);
+    
+    return {
+      success: true,
+      proxyInfo: proxyInfo
+    };
+  } catch (error) {
+    safeError('🌐 Failed to get proxy info:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+
+// AI API流式请求代理 - 支持SSE流式响应
+ipcMain.handle('ai-api-stream-request', async (event, config: {
+  url: string;
+  headers: Record<string, string>;
+  body: any;
+}) => {
+  try {
+    const { url, headers, body } = config;
+    
+    safeLog('🌊 Main: Starting AI API stream request to:', url);
+    
+    // 创建流式请求
+    const request = net.request({
+      method: 'POST',
+      url: url
+    });
+    
+    // 设置请求头，启用流式响应
+    Object.entries(headers).forEach(([key, value]) => {
+      request.setHeader(key, value);
+    });
+    request.setHeader('Content-Type', 'application/json');
+    
+    // 修改body以启用流式响应（针对OpenAI和兼容API）
+    const streamBody = { ...body, stream: true };
+    
+    request.on('response', (response) => {
+      const statusCode = response.statusCode || 0;
+      safeLog('🌊 Main: Stream response status:', statusCode);
+      
+      if (statusCode >= 200 && statusCode < 300) {
+        // 处理流式数据
+        response.on('data', (chunk) => {
+          const chunkStr = chunk.toString();
+          const lines = chunkStr.split('\n').filter(line => line.trim());
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6); // 移除 "data: " 前缀
+              
+              if (data === '[DONE]') {
+                // 流结束
+                event.sender.send('ai-stream-end');
+                return;
+              }
+              
+              try {
+                const parsed = JSON.parse(data);
+                // 提取增量内容
+                const delta = parsed.choices?.[0]?.delta?.content || '';
+                if (delta) {
+                  event.sender.send('ai-stream-data', delta);
+                }
+              } catch (parseError) {
+                // 忽略解析错误，继续处理下一行
+              }
+            }
+          }
+        });
+        
+        response.on('end', () => {
+          event.sender.send('ai-stream-end');
+        });
+        
+        response.on('error', (error) => {
+          safeError('🌊 Main: Stream response error:', error);
+          event.sender.send('ai-stream-error', error.message);
+        });
+      } else {
+        let errorData = '';
+        response.on('data', (chunk) => {
+          errorData += chunk.toString();
+        });
+        response.on('end', () => {
+          event.sender.send('ai-stream-error', `HTTP ${statusCode}: ${errorData}`);
+        });
+      }
+    });
+    
+    request.on('error', (error) => {
+      safeError('🌊 Main: Stream request error:', error);
+      event.sender.send('ai-stream-error', error.message);
+    });
+    
+    // 发送请求数据
+    request.write(JSON.stringify(streamBody));
+    request.end();
+    
+    return { success: true, message: 'Stream started' };
+  } catch (error) {
+    safeError('🌊 Main: Failed to start stream:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+
+// AI API请求代理 - 解决CORS问题，支持系统代理
+ipcMain.handle('ai-api-request', async (_, config: {
+  url: string;
+  headers: Record<string, string>;
+  body: any;
+}) => {
+  try {
+    const { url, headers, body } = config;
+    
+    safeLog('🤖 Main: Proxying AI API request to:', url);
+    safeLog('🤖 Main: Using Electron net module (supports system proxy)');
+    
+    // 使用Electron的net模块，自动支持系统代理设置（包括ClashX等）
+    return new Promise((resolve) => {
+      const request = net.request({
+        method: 'POST',
+        url: url
+      });
+      
+      // 设置请求头
+      Object.entries(headers).forEach(([key, value]) => {
+        request.setHeader(key, value);
+      });
+      
+      // 设置Content-Type
+      request.setHeader('Content-Type', 'application/json');
+      
+      let responseData = '';
+      let statusCode = 0;
+      
+      request.on('response', (response) => {
+        statusCode = response.statusCode || 0;
+        safeLog('🤖 Main: Response status:', statusCode);
+        
+        response.on('data', (chunk) => {
+          responseData += chunk.toString();
+        });
+        
+        response.on('end', () => {
+          try {
+            if (statusCode >= 200 && statusCode < 300) {
+              const data = JSON.parse(responseData);
+              safeLog('🤖 Main: AI API response received via proxy-aware request');
+              resolve({
+                success: true,
+                data: data
+              });
+            } else {
+              safeError('🤖 Main: AI API error:', statusCode, responseData.substring(0, 200) + '...');
+              resolve({
+                success: false,
+                status: statusCode,
+                error: responseData
+              });
+            }
+          } catch (parseError) {
+            safeError('🤖 Main: Failed to parse response:', parseError);
+            resolve({
+              success: false,
+              status: statusCode,
+              error: `Failed to parse response: ${parseError instanceof Error ? parseError.message : String(parseError)}`
+            });
+          }
+        });
+      });
+      
+      request.on('error', (error) => {
+        safeError('🤖 Main: Request error:', error);
+        resolve({
+          success: false,
+          error: error.message
+        });
+      });
+      
+      // 发送请求体
+      try {
+        request.write(JSON.stringify(body));
+        request.end();
+      } catch (writeError) {
+        safeError('🤖 Main: Failed to write request body:', writeError);
+        resolve({
+          success: false,
+          error: writeError instanceof Error ? writeError.message : String(writeError)
+        });
+      }
+    });
+  } catch (error) {
+    safeError('🤖 Main: AI API request setup failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
   }
 });

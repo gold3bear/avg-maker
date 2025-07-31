@@ -1,0 +1,10 @@
+# 忽略实际的配置文件（保护API密钥和隐私）
+ai-models.json
+selected-ai-model.txt
+storage-config.json
+chat-sessions.json
+
+# 保留示例文件
+!*.example.*
+!README.md
+!.gitignore

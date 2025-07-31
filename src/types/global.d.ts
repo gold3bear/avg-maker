@@ -83,6 +83,103 @@ declare global {
       
       // Debug logging
       logToMain?: (message: string) => Promise<void>;
+      
+      // AI API请求代理
+      aiApiRequest: (config: {
+        url: string;
+        headers: Record<string, string>;
+        body: any;
+      }) => Promise<{
+        success: boolean;
+        data?: any;
+        status?: number;
+        error?: string;
+      }>;
+      
+      // AI API流式请求代理
+      aiApiStreamRequest: (config: {
+        url: string;
+        headers: Record<string, string>;
+        body: any;
+      }) => Promise<{
+        success: boolean;
+        message?: string;
+        error?: string;
+      }>;
+      
+      // 流式响应事件监听
+      onAIStreamData: (callback: (data: string) => void) => () => void;
+      onAIStreamEnd: (callback: () => void) => () => void;
+      onAIStreamError: (callback: (error: string) => void) => () => void;
+      
+      // 代理信息查询
+      getProxyInfo: () => Promise<{
+        success: boolean;
+        proxyInfo?: string;
+        error?: string;
+      }>;
+      
+      // AI模型配置持久化存储
+      saveAIModels: (models: any[]) => Promise<{
+        success: boolean;
+        error?: string;
+      }>;
+      loadAIModels: () => Promise<{
+        success: boolean;
+        data: any[];
+        error?: string;
+      }>;
+      saveSelectedAIModel: (modelId: string) => Promise<{
+        success: boolean;
+        error?: string;
+      }>;
+      loadSelectedAIModel: () => Promise<{
+        success: boolean;
+        data: string;
+        error?: string;
+      }>;
+      verifyAIStorage: () => Promise<{
+        success: boolean;
+        data?: any;
+        error?: string;
+      }>;
+      clearAIStorage: () => Promise<{
+        success: boolean;
+        data?: any;
+        error?: string;
+      }>;
+      
+      // 存储方案配置
+      getStorageConfig: () => Promise<{
+        success: boolean;
+        data: {
+          storageType: 'localStorage' | 'file' | 'hybrid';
+          enableLocalStorageSync: boolean;
+        };
+        error?: string;
+      }>;
+      saveStorageConfig: (config: {
+        storageType: 'localStorage' | 'file' | 'hybrid';
+        enableLocalStorageSync: boolean;
+      }) => Promise<{
+        success: boolean;
+        error?: string;
+      }>;
+      
+      // 会话历史管理
+      saveChatSession: (session: any) => Promise<{
+        success: boolean;
+        error?: string;
+      }>;
+      loadChatSessions: () => Promise<{
+        success: boolean;
+        data: any[];
+        error?: string;
+      }>;
+      deleteChatSession: (sessionId: string) => Promise<{
+        success: boolean;
+        error?: string;
+      }>;
     };
     
     // 开发测试工具

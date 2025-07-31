@@ -4,7 +4,7 @@ import type { SidebarTab } from '../types/sidebar';
 import { Files, Search, GitBranch, Bot, Settings } from 'lucide-react';
 
 interface ActivityBarProps {
-  activeTab: SidebarTab;
+  activeTab?: SidebarTab;
   onTabChange?: (tab: SidebarTab) => void;
 }
 

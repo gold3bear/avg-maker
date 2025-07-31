@@ -29,6 +29,18 @@ const AppContent: React.FC = () => {
   const [view, setView] = useState<'preview' | 'graph'>('preview');
   const [activeTab, setActiveTab] = useState<SidebarTab>('explorer');
   const [sidebarVisible, setSidebarVisible] = useState(true);
+
+  // VS Code风格的sidebar切换逻辑
+  const handleTabChange = (tab: SidebarTab) => {
+    if (activeTab === tab && sidebarVisible) {
+      // 如果点击当前激活的tab，关闭sidebar
+      setSidebarVisible(false);
+    } else {
+      // 否则切换到新tab并显示sidebar
+      setActiveTab(tab);
+      setSidebarVisible(true);
+    }
+  };
   const [pluginCtx, setPluginCtx] = useState<{
     manifest: any;
     params?: any;
@@ -1094,7 +1106,7 @@ const AppContent: React.FC = () => {
         {(appMode === 'normal' || appMode === 'crash-recovery') && (
           <>
             {/* 左侧：活动栏 */}
-            {sidebarVisible && <ActivityBar activeTab={activeTab} onTabChange={setActiveTab} />}
+            <ActivityBar activeTab={sidebarVisible ? activeTab : undefined} onTabChange={handleTabChange} />
 
             {/* 侧边栏 */}
             {sidebarVisible && activeTab === 'explorer' && <ProjectExplorer 
@@ -1105,7 +1117,7 @@ const AppContent: React.FC = () => {
             {sidebarVisible && activeTab === 'bot' && (
               <AIChatPanel 
                 isOpen={true}
-                onToggle={() => {}} // 空函数，因为面板显示状态由ActivityBar控制
+                onToggle={() => setSidebarVisible(false)} // 关闭sidebar
                 projectContext={{currentFile: activeFile, projectName: projectPath ? projectPath.split(/[/\\]/).pop() : ''}} 
               />
             )}

@@ -80,6 +80,54 @@ contextBridge.exposeInMainWorld('inkAPI', {
   
   // Debug logging
   logToMain: (message: string) => ipcRenderer.invoke('log-to-main', message),
+  
+  // AI API请求代理
+  aiApiRequest: (config: {
+    url: string;
+    headers: Record<string, string>;
+    body: any;
+  }) => ipcRenderer.invoke('ai-api-request', config),
+  
+  // AI API流式请求代理
+  aiApiStreamRequest: (config: {
+    url: string;
+    headers: Record<string, string>;
+    body: any;
+  }) => ipcRenderer.invoke('ai-api-stream-request', config),
+  
+  // 流式响应事件监听
+  onAIStreamData: (callback: (data: string) => void) => {
+    ipcRenderer.on('ai-stream-data', (_, data) => callback(data));
+    return () => ipcRenderer.removeAllListeners('ai-stream-data');
+  },
+  onAIStreamEnd: (callback: () => void) => {
+    ipcRenderer.on('ai-stream-end', () => callback());
+    return () => ipcRenderer.removeAllListeners('ai-stream-end');
+  },
+  onAIStreamError: (callback: (error: string) => void) => {
+    ipcRenderer.on('ai-stream-error', (_, error) => callback(error));
+    return () => ipcRenderer.removeAllListeners('ai-stream-error');
+  },
+  
+  // 代理信息查询
+  getProxyInfo: () => ipcRenderer.invoke('get-proxy-info'),
+  
+  // AI模型配置持久化存储
+  saveAIModels: (models: any[]) => ipcRenderer.invoke('save-ai-models', models),
+  loadAIModels: () => ipcRenderer.invoke('load-ai-models'),
+  saveSelectedAIModel: (modelId: string) => ipcRenderer.invoke('save-selected-ai-model', modelId),
+  loadSelectedAIModel: () => ipcRenderer.invoke('load-selected-ai-model'),
+  verifyAIStorage: () => ipcRenderer.invoke('verify-ai-storage'),
+  clearAIStorage: () => ipcRenderer.invoke('clear-ai-storage'),
+  
+  // 存储方案配置
+  getStorageConfig: () => ipcRenderer.invoke('get-storage-config'),
+  saveStorageConfig: (config: any) => ipcRenderer.invoke('save-storage-config', config),
+  
+  // 会话历史管理
+  saveChatSession: (session: any) => ipcRenderer.invoke('save-chat-session', session),
+  loadChatSessions: () => ipcRenderer.invoke('load-chat-sessions'),
+  deleteChatSession: (sessionId: string) => ipcRenderer.invoke('delete-chat-session', sessionId),
 });
 
 // Type declarations are now in src/types/global.d.ts

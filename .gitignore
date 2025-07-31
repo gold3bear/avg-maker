@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# AI Configuration (contains API keys and personal settings)
+.ai-config/ai-models.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

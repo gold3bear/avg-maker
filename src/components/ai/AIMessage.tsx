@@ -24,15 +24,24 @@ export interface AIMessageData {
 interface AIMessageProps {
   message: AIMessageData;
   onToggleSettings?: () => void;
+  onActionClick?: (action: string) => void;
 }
 
-const formatTime = (date: Date) => {
+const formatTime = (date: Date | string): string => {
+  // 如果传入的是字符串，尝试将其转换为 Date 对象
+  const validDate = typeof date === 'string' ? new Date(date) : date;
+
+  if (!(validDate instanceof Date) || isNaN(validDate.getTime())) {
+    console.error('Invalid date provided:', date);
+    return 'Invalid Date';
+  }
+
   const now = new Date();
-  const diff = now.getTime() - date.getTime();
+  const diff = now.getTime() - validDate.getTime();
   
   if (diff < 60000) return '刚才';
   if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
-  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  return validDate.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 };
 
 const CodeBlock = ({ language, code, onCopy, copied }: { 
@@ -58,7 +67,7 @@ const CodeBlock = ({ language, code, onCopy, copied }: {
   </div>
 );
 
-const ActionButton = ({ action }: { action: string }) => {
+const ActionButton = ({ action, onClick }: { action: string; onClick: (action: string) => void }) => {
   const actionConfig: Record<string, { text: string; icon: React.ReactNode }> = {
     'generate-character': { text: '生成角色', icon: <User size={12} /> },
     'create-scene': { text: '创建场景', icon: <Wand2 size={12} /> },
@@ -67,13 +76,19 @@ const ActionButton = ({ action }: { action: string }) => {
     'add-dialogue': { text: '添加对话', icon: <MessageSquare size={12} /> },
     'apply-fix': { text: '应用修复', icon: <CheckCircle size={12} /> },
     'continue-chat': { text: '继续对话', icon: <ChevronRight size={12} /> },
-    'analyze-flow': { text: '分析流程', icon: <AlertCircle size={12} /> }
+    'analyze-flow': { text: '分析流程', icon: <AlertCircle size={12} /> },
+    'generate-ink-code': { text: '生成Ink代码', icon: <Code size={12} /> },
+    'generate-more': { text: '生成更多', icon: <Wand2 size={12} /> },
+    'start-over': { text: '重新开始', icon: <AlertCircle size={12} /> }
   };
 
   const config = actionConfig[action] || { text: action, icon: <Wand2 size={12} /> };
 
   return (
-    <button className="flex items-center space-x-1 px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-xs text-gray-200">
+    <button 
+      onClick={() => onClick(action)}
+      className="flex items-center space-x-1 px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded text-xs text-gray-200 transition-colors"
+    >
       {config.icon}
       <span>{config.text}</span>
     </button>
@@ -98,7 +113,7 @@ const AIThinkingIndicator = () => (
   </div>
 );
 
-export const AIMessage: React.FC<AIMessageProps> = ({ message, onToggleSettings }) => {
+export const AIMessage: React.FC<AIMessageProps> = ({ message, onActionClick, onToggleSettings }) => {
   const [copiedCode, setCopiedCode] = useState<number | null>(null);
   const isAI = message.type === 'ai';
   const isUser = message.type === 'user';
@@ -161,9 +176,9 @@ export const AIMessage: React.FC<AIMessageProps> = ({ message, onToggleSettings 
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       {isAI && (
-        <div
+        <div 
           className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0 mr-3 cursor-pointer"
-          onClick={onToggleSettings}
+          onClick={() => onToggleSettings?.()}
         >
           <Bot size={16} className="text-white" />
         </div>
@@ -180,10 +195,10 @@ export const AIMessage: React.FC<AIMessageProps> = ({ message, onToggleSettings 
           </div>
           
           {/* AI消息的操作按钮 */}
-          {isAI && message.actions && message.actions.length > 0 && (
+          {isAI && message.actions && message.actions.length > 0 && onActionClick && (
             <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-600">
               {message.actions.map((action) => (
-                <ActionButton key={action} action={action} />
+                <ActionButton key={action} action={action} onClick={onActionClick} />
               ))}
             </div>
           )}
@@ -194,11 +209,6 @@ export const AIMessage: React.FC<AIMessageProps> = ({ message, onToggleSettings 
         </div>
       </div>
 
-      {isUser && (
-        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 ml-3">
-          <User size={16} className="text-white" />
-        </div>
-      )}
     </div>
   );
 };

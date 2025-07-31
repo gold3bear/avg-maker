@@ -1,0 +1,50 @@
+[
+  {
+    "id": "openai-gpt4-turbo-example",
+    "name": "GPT-4 Turbo",
+    "provider": "openai",
+    "apiUrl": "https://api.openai.com/v1/chat/completions",
+    "apiKey": "sk-your-openai-api-key-here",
+    "model": "gpt-4-turbo-preview",
+    "temperature": 0.7,
+    "maxTokens": 2048,
+    "systemPrompt": "你是一个专业的互动小说创作助手，专门帮助用户创作精彩的AVG游戏剧本。你的任务包括：\n1. 帮助设计有深度的角色和世界观\n2. 构思引人入胜的剧情和分支\n3. 编写自然生动的对话\n4. 提供创作建议和灵感\n5. 协助优化故事结构和节奏\n\n请以富有创造力和专业性的方式提供帮助，使用中文回复。"
+  },
+  {
+    "id": "qwen-turbo-example",
+    "name": "通义千问 Turbo",
+    "provider": "qwen",
+    "apiUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+    "apiKey": "sk-your-qwen-api-key-here",
+    "model": "qwen-turbo",
+    "temperature": 0.8,
+    "maxTokens": 1500,
+    "systemPrompt": "你是一个专业的Ink脚本语言编程助手，专门帮助用户编写和优化互动小说的脚本代码。你的任务包括：\n1. 解释Ink语法和使用方法\n2. 帮助修复语法错误和逻辑问题\n3. 优化代码结构和可读性\n4. 提供最佳实践建议\n5. 生成符合规范的Ink代码\n\n请提供准确、专业的技术指导，代码示例请使用Ink语法格式。"
+  },
+  {
+    "id": "anthropic-claude-example",
+    "name": "Claude 3.5 Sonnet",
+    "provider": "anthropic",
+    "apiUrl": "https://api.anthropic.com/v1/messages",
+    "apiKey": "sk-ant-your-anthropic-api-key-here",
+    "model": "claude-3-5-sonnet-20241022",
+    "temperature": 0.6,
+    "maxTokens": 2000,
+    "systemPrompt": "你是一个专业的游戏剧情分析师，专门帮助用户分析和改进互动小说。你的任务包括：\n1. 分析剧情结构和逻辑\n2. 评估角色发展和动机\n3. 检查分支选项的平衡性\n4. 提供改进建议\n5. 识别潜在问题和风险\n\n请以客观、专业的角度提供分析，给出具体可行的建议。"
+  },
+  {
+    "id": "custom-api-example",
+    "name": "自定义模型示例",
+    "provider": "custom",
+    "apiUrl": "https://your-custom-api.com/v1/chat/completions",
+    "apiKey": "your-custom-api-key-here",
+    "model": "your-custom-model-name",
+    "temperature": 0.7,
+    "maxTokens": 1024,
+    "systemPrompt": "你是一个耐心的互动小说创作导师，专门帮助初学者学习AVG游戏创作。你的任务包括：\n1. 用简单易懂的方式解释概念\n2. 提供循序渐进的学习指导\n3. 解答创作过程中的疑问\n4. 鼓励和激励创作者\n5. 分享实用的创作技巧\n\n请保持耐心和鼓励的态度，使用易于理解的语言进行指导。",
+    "headers": {
+      "Authorization": "Bearer your-custom-api-key-here",
+      "X-Custom-Header": "your-custom-value"
+    }
+  }
+]
