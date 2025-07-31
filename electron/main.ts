@@ -54,6 +54,7 @@ const safeError = (message: string, ...args: any[]) => {
 // 预览服务器相关变量
 let previewServer: any = null;
 let currentPreviewFile: string | null = null;
+let lastRefreshTime: number = Date.now();
 
 // 全局异常处理，防止主进程崩溃
 process.on('uncaughtException', (error) => {
@@ -378,6 +379,26 @@ function generatePreviewHTML(storyJson: any, fileName: string, errorMessage: str
             }
         }
         
+        // 自动刷新检测
+        let lastKnownRefreshTime = ${lastRefreshTime};
+        
+        function checkForRefresh() {
+            fetch('/api/refresh-time')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.refreshTime > lastKnownRefreshTime) {
+                        console.log('🔄 Content refresh detected, reloading page...');
+                        window.location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.warn('Refresh check failed:', error);
+                });
+        }
+        
+        // 每2秒检查一次是否需要刷新
+        setInterval(checkForRefresh, 2000);
+        
         // 等待inkjs加载完成后初始化
         if (window.inkjs) {
             initGame();
@@ -427,6 +448,14 @@ async function startPreviewServer() {
         res.end(`Error generating preview: ${error instanceof Error ? error.message : String(error)}`);
         return;
       }
+    }
+    
+    // 刷新时间戳API
+    if (pathname === '/api/refresh-time') {
+      res.setHeader('Content-Type', 'application/json');
+      res.writeHead(200);
+      res.end(JSON.stringify({ refreshTime: lastRefreshTime }));
+      return;
     }
     
     // 404处理
@@ -1275,6 +1304,30 @@ ipcMain.handle('show-in-explorer', async (_, filePath: string) => {
     return { success: true };
   } catch (error) {
     console.error('show-in-explorer: Error showing item:', filePath, error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+// 在系统默认浏览器中打开URL
+ipcMain.handle('open-external-url', async (_, url: string) => {
+  try {
+    console.log('🌐 Opening external URL:', url);
+    await shell.openExternal(url);
+    return { success: true };
+  } catch (error) {
+    console.error('open-external-url: Error opening URL:', url, error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+// 触发预览刷新
+ipcMain.handle('trigger-preview-refresh', async () => {
+  try {
+    lastRefreshTime = Date.now();
+    console.log('🔄 Preview refresh triggered at:', lastRefreshTime);
+    return { success: true, refreshTime: lastRefreshTime };
+  } catch (error) {
+    console.error('trigger-preview-refresh: Error:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 });

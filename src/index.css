@@ -35,9 +35,9 @@ body {
 
 /* 修复 macOS 全屏模式下标题栏高度变化问题 */
 .titlebar-fix {
-  height: 32px !important;
-  min-height: 32px !important;
-  max-height: 32px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  max-height: 42px !important;
   flex-shrink: 0 !important;
   box-sizing: border-box !important;
 }
@@ -45,7 +45,7 @@ body {
 /* 确保在 macOS 全屏切换时标题栏不受影响 */
 @media screen and (-webkit-min-device-pixel-ratio: 1) {
   .titlebar-fix {
-    height: 32px !important;
+    height: 42px !important;
   }
 }
 

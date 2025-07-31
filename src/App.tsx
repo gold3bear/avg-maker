@@ -4,12 +4,11 @@ import { ProjectContext } from './context/ProjectContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { SaveProvider, useSave } from './context/SaveContext';
 import { TitleBar } from './components/TitleBar';
-import { Toolbar } from './components/Toolbar';
 import { ProjectExplorer } from './components/ProjectExplorer';
 import { ActivityBar } from './components/ActivityBar';
 import { StatusBar } from './components/StatusBar';
 import { Editor } from './components/Editor';
-import { Preview } from './components/Preview';
+import { Preview, type PreviewRef } from './components/Preview';
 import { NodeGraph } from './components/NodeGraph';
 import { PluginHost } from './components/PluginHost';
 import AIChatPanel from './components/ai/AIChatPanel';
@@ -29,6 +28,9 @@ const AppContent: React.FC = () => {
   const [view, setView] = useState<'preview' | 'graph'>('preview');
   const [activeTab, setActiveTab] = useState<SidebarTab>('explorer');
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  
+  // Preview组件的ref，用于TitleBar控制导航
+  const previewRef = useRef<PreviewRef>(null);
 
   // VS Code风格的sidebar切换逻辑
   const handleTabChange = (tab: SidebarTab) => {
@@ -41,6 +43,60 @@ const AppContent: React.FC = () => {
       setSidebarVisible(true);
     }
   };
+
+  // 通用的sidebar宽度调整处理
+  const handleSidebarResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - startX;
+      const newWidth = Math.max(200, Math.min(600, startWidth + deltaX));
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  // 右侧面板宽度调整处理
+  const handleRightPanelResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = rightPanelWidth;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = startX - e.clientX; // 注意：向左拖拽应该增大右侧面板宽度
+      const newWidth = Math.max(300, Math.min(window.innerWidth * 0.7, startWidth + deltaX));
+      setRightPanelWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+  const [sidebarWidth, setSidebarWidth] = useState(256);
+  const [rightPanelWidth, setRightPanelWidth] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth * 0.33 : 400
+  );
   const [pluginCtx, setPluginCtx] = useState<{
     manifest: any;
     params?: any;
@@ -101,34 +157,15 @@ const AppContent: React.FC = () => {
     selectFile(filePath);
   }, [appMode, selectFile]);
 
-  // 处理导航到文件的特定行
-  const handleNavigateToLine = useCallback((filePath: string, line: number) => {
-    // 检查当前appMode，只有在normal或crash-recovery模式下才执行
-    if (appMode === 'welcome' || appMode === 'loading') {
-      console.log('⚠️ App: 跳过导航，当前处于:', appMode);
-      return;
-    }
-    console.log('📍 App: 导航到文件行:', filePath, line);
-    
-    // 首先选择文件
-    selectFile(filePath);
-    
-    // 设置导航目标
-    setNavigationTarget({ filePath, line });
-    
-    // 清除导航目标（避免重复导航）
-    setTimeout(() => {
-      setNavigationTarget(null);
-    }, 500);
-  }, [appMode, selectFile]);
-
   // VS Code风格的状态管理
   const workspaceState = useWorkspaceState({
     projectPath,
     activeFile,
     view,
     activeTab,
-    sidebarVisible
+    sidebarVisible,
+    sidebarWidth,
+    rightPanelWidth
   });
 
   // 使用ref保存最新状态，避免在beforeunload时状态被重置
@@ -137,7 +174,9 @@ const AppContent: React.FC = () => {
     activeFile,
     view,
     activeTab,
-    sidebarVisible
+    sidebarVisible,
+    sidebarWidth,
+    rightPanelWidth
   });
 
   // 更新最新状态ref并立即保存重要状态变化
@@ -147,7 +186,9 @@ const AppContent: React.FC = () => {
       activeFile,
       view,
       activeTab,
-      sidebarVisible
+      sidebarVisible,
+      sidebarWidth,
+      rightPanelWidth
     };
     
     // 当重要状态变化时立即保存到sessionStorage（恢复完成后）
@@ -158,6 +199,8 @@ const AppContent: React.FC = () => {
         view,
         activeTab,
         sidebarVisible,
+        sidebarWidth,
+        rightPanelWidth,
         timestamp: Date.now()
       };
       
@@ -171,7 +214,7 @@ const AppContent: React.FC = () => {
     } else if (!isRecoveryCompleteRef.current) {
       console.log('⏸️ App: 恢复未完成，跳过立即保存:', { projectPath, activeFile });
     }
-  }, [projectPath, activeFile, view, activeTab, sidebarVisible]);
+  }, [projectPath, activeFile, view, activeTab, sidebarVisible, sidebarWidth, rightPanelWidth]);
 
   // 更新独立预览窗口中的文件
   React.useEffect(() => {
@@ -272,6 +315,8 @@ const AppContent: React.FC = () => {
           view,
           activeTab,
           sidebarVisible,
+          sidebarWidth,
+          rightPanelWidth,
           timestamp: Date.now()
         };
         
@@ -634,6 +679,8 @@ const AppContent: React.FC = () => {
           if (appState.view) setView(appState.view);
           if (appState.activeTab) setActiveTab(appState.activeTab as SidebarTab);
           if (appState.sidebarVisible !== undefined) setSidebarVisible(appState.sidebarVisible);
+          if (appState.sidebarWidth !== undefined) setSidebarWidth(appState.sidebarWidth);
+          if (appState.editorWidth !== undefined) setRightPanelWidth(appState.editorWidth);
           
           // 特别处理projectPath恢复 - 使用loadProjectPath
           if (appState.projectPath && appState.projectPath !== projectPath) {
@@ -684,6 +731,8 @@ const AppContent: React.FC = () => {
           setView(states.ui.view || 'preview');
           setActiveTab(states.ui.activeTab || 'explorer');
           setSidebarVisible(states.ui.sidebarVisible !== undefined ? states.ui.sidebarVisible : true);
+          if (states.ui.sidebarWidth !== undefined) setSidebarWidth(states.ui.sidebarWidth);
+          if (states.ui.editorWidth !== undefined) setRightPanelWidth(states.ui.editorWidth);
         }
         
         // 恢复编辑器状态 (包括从主崩溃恢复数据中获取的)
@@ -814,6 +863,8 @@ const AppContent: React.FC = () => {
         setView(appState.view || 'preview');
         setActiveTab((appState.activeTab as SidebarTab) || 'explorer');
         setSidebarVisible(appState.sidebarVisible !== undefined ? appState.sidebarVisible : true);
+        if (appState.sidebarWidth !== undefined) setSidebarWidth(appState.sidebarWidth);
+        if (appState.editorWidth !== undefined) setRightPanelWidth(appState.editorWidth);
         
         // 恢复项目路径
         if (appState.projectPath && appState.projectPath !== projectPath) {
@@ -954,7 +1005,7 @@ const AppContent: React.FC = () => {
     const interval = setInterval(saveState, 10000);
 
     return () => clearInterval(interval);
-  }, [projectPath, activeFile, view, activeTab, sidebarVisible]);
+  }, [projectPath, activeFile, view, activeTab, sidebarVisible, sidebarWidth, rightPanelWidth]);
 
   // 处理崩溃恢复
   const handleCrashRestore = async (restoreFiles: boolean, restoreProject: boolean) => {
@@ -970,10 +1021,12 @@ const AppContent: React.FC = () => {
       if (restoreProject && recoveryData.appState) {
         const appState = recoveryData.appState;
         console.log('🔄 恢复项目状态:', appState);
-        
+
         setView(appState.view || 'preview');
         setActiveTab((appState.activeTab as SidebarTab) || 'explorer');
         setSidebarVisible(appState.sidebarVisible !== undefined ? appState.sidebarVisible : true);
+        if (appState.sidebarWidth !== undefined) setSidebarWidth(appState.sidebarWidth);
+        if (appState.editorWidth !== undefined) setRightPanelWidth(appState.editorWidth);
         
         // 恢复项目路径
         if (appState.projectPath && appState.projectPath !== projectPath) {
@@ -1078,6 +1131,12 @@ const AppContent: React.FC = () => {
           onToggleSidebar={() => setSidebarVisible(!sidebarVisible)}
           sidebarVisible={sidebarVisible}
           activeFile={activeFile}
+          view={view}
+          onViewChange={setView}
+          onOpenProject={openProject}
+          onExportWeb={() => window.inkAPI.exportGame('web')}
+          onExportDesktop={() => window.inkAPI.exportGame('desktop')}
+          previewRef={previewRef}
         />
       </div>
 
@@ -1108,70 +1167,77 @@ const AppContent: React.FC = () => {
             {/* 左侧：活动栏 */}
             <ActivityBar activeTab={sidebarVisible ? activeTab : undefined} onTabChange={handleTabChange} />
 
-            {/* 侧边栏 */}
-            {sidebarVisible && activeTab === 'explorer' && <ProjectExplorer 
-              onSelect={selectFile} 
-              onNavigate={handleNavigateToLine} 
-            />}
+            {/* 项目资源管理器 - 始终存在但通过样式控制显示 */}
+            <div className={`flex flex-shrink-0 ${
+              sidebarVisible && activeTab === 'explorer' ? 'flex' : 'hidden'
+            }`}>
+              <div style={{ width: sidebarWidth }}>
+                <ProjectExplorer onSelect={selectFile} />
+              </div>
+              <ResizeDivider onResizeStart={handleSidebarResizeStart} />
+            </div>
 
-            {sidebarVisible && activeTab === 'bot' && (
-              <AIChatPanel 
-                isOpen={true}
-                onToggle={() => setSidebarVisible(false)} // 关闭sidebar
-                projectContext={{currentFile: activeFile, projectName: projectPath ? projectPath.split(/[/\\]/).pop() : ''}} 
-              />
-            )}
+            {/* AI聊天面板 - 始终存在但通过样式控制显示 */}
+            <div className={`flex flex-shrink-0 ${
+              sidebarVisible && activeTab === 'bot' ? 'flex' : 'hidden'
+            }`}>
+              <div style={{ width: sidebarWidth }}>
+                <AIChatPanel 
+                  isOpen={sidebarVisible && activeTab === 'bot'}
+                  onToggle={() => setSidebarVisible(false)} // 关闭sidebar
+                  projectContext={{currentFile: activeFile, projectName: projectPath ? projectPath.split(/[/\\]/).pop() : ''}} 
+                />
+              </div>
+              <ResizeDivider onResizeStart={handleSidebarResizeStart} />
+            </div>
 
 
             {/* 右侧：主区域 */}
             <div className="flex-1 flex flex-col overflow-hidden">
-          {/* 顶部工具栏 */}
-          <Toolbar
-            view={view}
-            onViewChange={setView}
-            onOpenProject={openProject}
-            onExportWeb={() => window.inkAPI.exportGame('web')}
-            onExportDesktop={() => window.inkAPI.exportGame('desktop')}
-          />
-
-          {/* 内容区：分栏布局 */}
-          <div className="flex flex-1 overflow-hidden">
-            {/* 编辑器区域 */}
-            <div
-              className="w-2/3 h-full overflow-hidden"
-              style={{
-                borderRight: `1px solid var(--color-border)`,
-                backgroundColor: 'var(--color-editorBackground)',
-              }}
-            >
-              <Editor
-                filePath={activeFile}
+              {/* 内容区：分栏布局 */}
+              <div className="flex flex-1 overflow-hidden">
+                {/* 编辑器区域 - 使用flex-1让它灵活调整 */}
+                <div
+                  className="h-full overflow-hidden flex-1"
+                  style={{
+                    minWidth: '300px',
+                    borderRight: `1px solid var(--color-border)`,
+                    backgroundColor: 'var(--color-editorBackground)'
+                  }}
+                >
+                  <Editor
+                    filePath={activeFile}
                 goToLine={navigationTarget?.filePath === activeFile ? navigationTarget.line : undefined}
-                onRunPlugin={(id, params) => {
-                  const manifest = plugins.find((p) => p.id === id);
-                  if (manifest) setPluginCtx({ manifest, params });
-                }}
-              />
-            </div>
+                    onRunPlugin={(id, params) => {
+                      const manifest = plugins.find((p) => p.id === id);
+                      if (manifest) setPluginCtx({ manifest, params });
+                    }}
+                  />
+                </div>
+                <ResizeDivider onResizeStart={handleRightPanelResizeStart} />
 
-            {/* 预览 / 节点图 / 插件宿主 */}
-            <div
-              className="w-1/3 relative overflow-hidden"
-              style={{ backgroundColor: 'var(--color-surface)' }}
-            >
-              {pluginCtx ? (
-                <PluginHost
-                  plugin={pluginCtx.manifest}
-                  params={pluginCtx.params}
-                  onClose={() => setPluginCtx(null)}
-                />
-              ) : view === 'graph' ? (
-                <NodeGraph filePath={activeFile} />
-              ) : (
-                <Preview filePath={activeFile} />
-              )}
-            </div>
-          </div>
+                {/* 预览 / 节点图 / 插件宿主 - 使用固定宽度 */}
+                <div
+                  className="relative overflow-hidden flex-shrink-0"
+                  style={{ 
+                    backgroundColor: 'var(--color-surface)',
+                    width: rightPanelWidth,
+                    minWidth: '300px'
+                  }}
+                >
+                  {pluginCtx ? (
+                    <PluginHost
+                      plugin={pluginCtx.manifest}
+                      params={pluginCtx.params}
+                      onClose={() => setPluginCtx(null)}
+                    />
+                  ) : view === 'graph' ? (
+                    <NodeGraph filePath={activeFile} />
+                  ) : (
+                    <Preview ref={previewRef} filePath={activeFile} />
+                  )}
+                </div>
+              </div>
             </div>
           </>
         )}
@@ -1208,6 +1274,21 @@ const AppContent: React.FC = () => {
     </div>
   );
 };
+
+// 可复用的拖拽分隔符组件
+const ResizeDivider: React.FC<{
+  onResizeStart: (e: React.MouseEvent) => void;
+}> = ({ onResizeStart }) => (
+  <div
+    className="w-1 cursor-col-resize flex-shrink-0 hover:bg-blue-500 active:bg-blue-600 transition-colors duration-200 relative group"
+    style={{ backgroundColor: 'var(--color-border)' }}
+    onMouseDown={onResizeStart}
+    title="拖拽调整宽度"
+  >
+    {/* 增加拖拽热区 */}
+    <div className="absolute inset-y-0 -left-1 -right-1 w-3" />
+  </div>
+);
 
 // 使用Provider包装App
 export const App: React.FC = () => {

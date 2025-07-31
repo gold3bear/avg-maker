@@ -28,10 +28,9 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({
 
   return (
     <div
-      className="w-64 flex flex-col"
+      className="flex flex-col h-full w-full"
       style={{
         backgroundColor: 'var(--color-sidebarBackground)',
-        borderRight: `1px solid var(--color-sidebarBorder)`,
         color: 'var(--color-sidebarForeground)'
       }}
     >

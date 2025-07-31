@@ -1,20 +1,29 @@
-import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Story } from 'inkjs';
 import { ProjectContext } from '../context/ProjectContext';
 import { PluginHost } from './PluginHost.tsx';
 import { useTheme } from '../context/ThemeContext';
-import { NavigationBar } from './preview/NavigationBar';
 import { StatusInfo } from './preview/StatusInfo';
 import { ContentDisplay } from './preview/ContentDisplay';
 import { HistoryPanel } from './preview/HistoryPanel';
-import type { GameState, HistoryEntry, NavigationAction } from '../types/preview';
+import type { GameState, HistoryEntry } from '../types/preview';
 
 interface PreviewProps {
   /** 当前选中的 Ink 文件绝对路径 */
   filePath: string | null;
 }
 
-export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
+// Preview组件暴露的方法接口
+export interface PreviewRef {
+  goBack: () => void;
+  goForward: () => void;
+  reset: () => void;
+  canGoBack: () => boolean;
+  canGoForward: () => boolean;
+  onStateChange: (callback: (canGoBack: boolean, canGoForward: boolean) => void) => () => void;
+}
+
+export const Preview = forwardRef<PreviewRef, PreviewProps>(({ filePath }, ref) => {
   const { colors } = useTheme();
   const { plugins } = useContext(ProjectContext)!;
   
@@ -43,6 +52,24 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
   // refs
   const storyRef = useRef<Story | null>(null);
   const saveKeyRef = useRef<string>('');
+  
+  // 状态变化监听器
+  const stateChangeListenersRef = useRef<Set<(canGoBack: boolean, canGoForward: boolean) => void>>(new Set());
+
+  // 通知状态变化
+  const notifyStateChange = useCallback(() => {
+    const listeners = stateChangeListenersRef.current;
+    if (listeners.size > 0) {
+      listeners.forEach(listener => {
+        listener(gameState.canUndo, gameState.canRedo);
+      });
+    }
+  }, [gameState.canUndo, gameState.canRedo]);
+
+  // 监听gameState变化并通知
+  useEffect(() => {
+    notifyStateChange();
+  }, [notifyStateChange]);
 
   // 存储当前的knot名称(简单的手动跟踪方法)
   // const [currentKnotName, setCurrentKnotName] = useState<string>('unknown');
@@ -69,11 +96,12 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
         return fallbackKnot;
       }
       
-      console.log('getCurrentKnotName - returning unknown');
-      return 'unknown';
+      // 最后的备用策略：使用'start'而不是'unknown'
+      console.log('getCurrentKnotName - returning start as final fallback');
+      return 'start';
     } catch (error) {
       console.warn('获取当前knot失败:', error);
-      return 'unknown';
+      return fallbackKnot || 'start';
     }
   }, []);
   
@@ -100,13 +128,13 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
   }, []);
 
   // 创建历史记录条目
-  const createHistoryEntry = useCallback((story: Story, output: string[], choices: any[], choiceIndex?: number): HistoryEntry => {
+  const createHistoryEntry = useCallback((story: Story, output: string[], choices: any[], knotName: string, choiceIndex?: number): HistoryEntry => {
     try {
       return {
         output: [...output],
         choices: [...choices],
         choiceIndex,
-        knotName: getCurrentKnotName(story),
+        knotName,
         timestamp: Date.now(),
         storyState: story.state.ToJson()
       };
@@ -116,12 +144,12 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
         output: [...output],
         choices: [...choices],
         choiceIndex,
-        knotName: getCurrentKnotName(story),
+        knotName,
         timestamp: Date.now(),
         storyState: undefined
       };
     }
-  }, [getCurrentKnotName]);
+  }, []);
 
   // 初始化故事
   const initializeStory = useCallback(async () => {
@@ -165,22 +193,10 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
         }
       });
       
-      // 4. 执行初始内容
-      const initialOutput: string[] = [];
-      while (s.canContinue) {
-        const line = s.Continue();
-        if (line) initialOutput.push(line);
-      }
+      // 4. 先确定初始knot名称（在消费内容之前）
+      let initialKnotName = 'start';
       
-      // 5. 创建初始历史记录
-      const initialEntry = createHistoryEntry(s, initialOutput, s.currentChoices);
-      
-      // 6. 更新状态
-      
-      // 尝试从文件名或内容推断初始 knot
-      let initialKnotName = 'unknown';
-      
-      // 先尝试从文件名推断
+      // 尝试从文件名推断
       if (filePath) {
         const fileName = filePath.split('/').pop()?.replace('.ink', '');
         if (fileName && fileName !== 'story') {
@@ -188,14 +204,38 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
         }
       }
       
-      // 如果文件名不能用，尝试从Story获取
-      if (initialKnotName === 'unknown') {
-        initialKnotName = getCurrentKnotName(s);
+      // 如果文件名不能用，尝试从Story获取（在执行前获取）
+      if (initialKnotName === 'start') {
+        try {
+          // 执行一次Continue来获取路径信息，但不消费所有内容
+          if (s.canContinue) {
+            // 保存当前状态
+            const stateBeforeConsume = s.state.ToJson();
+            const firstLine = s.Continue();  // 这会设置currentPathString
+            const detectedKnot = getCurrentKnotName(s, 'start');
+            console.log('Detected initial knot from first line:', detectedKnot, 'firstLine:', firstLine);
+            
+            // 恢复到开始状态，准备重新消费所有内容
+            s.state.LoadJson(stateBeforeConsume);
+            initialKnotName = detectedKnot;
+          }
+        } catch (error) {
+          console.warn('Failed to detect initial knot name:', error);
+          initialKnotName = 'start';
+        }
       }
       
-      // 更新跟踪状态
-      // setCurrentKnotName(initialKnotName);
+      // 5. 执行初始内容
+      const initialOutput: string[] = [];
+      while (s.canContinue) {
+        const line = s.Continue();
+        if (line) initialOutput.push(line);
+      }
       
+      // 6. 创建初始历史记录（使用我们检测到的knot名称）
+      const initialEntry = createHistoryEntry(s, initialOutput, s.currentChoices, initialKnotName);
+      
+      // 7. 更新状态
       console.log('=== Initial State Update ===');
       console.log('initialKnotName:', initialKnotName);
       
@@ -316,13 +356,13 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
         if (line) newOutput.push(line);
       }
       
-      // 创建新的历史条目
-      const newEntry = createHistoryEntry(story, newOutput, story.currentChoices);
+      // 确定新的knot名称，优先使用预测的knot
+      const newKnotName = predictedKnot || getCurrentKnotName(story, 'start');
+      
+      // 创建新的历史条目（使用确定的knot名称）
+      const newEntry = createHistoryEntry(story, newOutput, story.currentChoices, newKnotName);
       const updatedHistory = [...currentHistory, newEntry];
       const newIndex = updatedHistory.length - 1;
-      
-      // 获取新的knot名称，使用预测的knot作为备用
-      const newKnotName = getCurrentKnotName(story, predictedKnot || undefined);
       console.log('=== After Choice State Update ===');
       console.log('newKnotName:', newKnotName);
       
@@ -418,26 +458,23 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
     }
   }, [story, historyIndex, gameState.history]);
 
-  // 处理导航动作
-  const handleNavigationAction = useCallback((action: NavigationAction) => {
-    switch (action.type) {
-      case 'RESET':
-        initializeStory();
-        break;
-      case 'UNDO':
-        handleUndo();
-        break;
-      case 'REDO':
-        handleRedo();
-        break;
-      case 'EXPORT_WEB':
-        window.inkAPI.exportGame('web');
-        break;
-      case 'EXPORT_DESKTOP':
-        window.inkAPI.exportGame('desktop');
-        break;
+  // 暴露给外部组件的方法
+  useImperativeHandle(ref, () => ({
+    goBack: handleUndo,
+    goForward: handleRedo,
+    reset: initializeStory,
+    canGoBack: () => gameState.canUndo,
+    canGoForward: () => gameState.canRedo,
+    onStateChange: (callback: (canGoBack: boolean, canGoForward: boolean) => void) => {
+      stateChangeListenersRef.current.add(callback);
+      // 立即调用一次以同步当前状态
+      callback(gameState.canUndo, gameState.canRedo);
+      // 返回取消监听的函数
+      return () => {
+        stateChangeListenersRef.current.delete(callback);
+      };
     }
-  }, [initializeStory, handleUndo, handleRedo]);
+  }), [handleUndo, handleRedo, initializeStory, gameState.canUndo, gameState.canRedo]);
 
   // 跳转到历史记录
   const handleJumpToHistory = useCallback((index: number) => {
@@ -562,12 +599,6 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
       className="h-full flex flex-col"
       style={{ backgroundColor: colors.primary }}
     >
-      {/* 导航栏 */}
-      <NavigationBar
-        gameState={gameState}
-        onAction={handleNavigationAction}
-        isLoading={isLoading}
-      />
       
       {/* 状态信息 */}
       <StatusInfo
@@ -591,6 +622,8 @@ export const Preview: React.FC<PreviewProps> = ({ filePath }) => {
       />
     </div>
   );
-};
+});
+
+Preview.displayName = 'Preview';
 
 export default Preview;

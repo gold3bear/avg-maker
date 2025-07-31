@@ -35,6 +35,8 @@ interface UseWorkspaceStateProps {
   view: 'preview' | 'graph';
   activeTab: 'explorer' | 'search' | 'git' | 'bot' | 'settings';
   sidebarVisible: boolean;
+  sidebarWidth?: number;
+  editorWidth?: number;
 }
 
 export const useWorkspaceState = ({
@@ -42,7 +44,9 @@ export const useWorkspaceState = ({
   activeFile,
   view,
   activeTab,
-  sidebarVisible
+  sidebarVisible,
+  sidebarWidth,
+  editorWidth
 }: UseWorkspaceStateProps) => {
   
   // 持续保存工作区状态
@@ -72,10 +76,12 @@ export const useWorkspaceState = ({
     const uiState: UIState = {
       view,
       activeTab,
-      sidebarVisible
+      sidebarVisible,
+      sidebarWidth,
+      editorWidth
     };
     crashRecovery.saveUIState(uiState);
-  }, [view, activeTab, sidebarVisible]);
+  }, [view, activeTab, sidebarVisible, sidebarWidth, editorWidth]);
 
   // 恢复状态
   const restoreStates = useCallback(() => {

@@ -46,6 +46,8 @@ declare global {
       createDirectory?: (dirPath: string) => Promise<boolean>;
       showInExplorer?: (filePath: string) => Promise<{ success: boolean; error?: string }>;
       copyFile?: (src: string, dest: string) => Promise<boolean>;
+      openExternalUrl?: (url: string) => Promise<{ success: boolean; error?: string }>;
+      triggerPreviewRefresh?: () => Promise<{ success: boolean; refreshTime?: number; error?: string }>;
       
       // File watching
       watchFiles: (paths: string[]) => Promise<boolean>;

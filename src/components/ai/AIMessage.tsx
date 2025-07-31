@@ -209,6 +209,7 @@ export const AIMessage: React.FC<AIMessageProps> = ({ message, onActionClick, on
         </div>
       </div>
 
+      {/* 移除用户头像显示以节省空间 */}
     </div>
   );
 };

@@ -113,6 +113,7 @@ interface AIChatPanelProps {
   isOpen?: boolean;
   onToggle?: () => void;
   projectContext: { currentFile: string | null; projectName?: string | null };
+  width?: number; // 添加宽度属性，使其可控制
 }
 
 // 面板状态枚举
@@ -122,6 +123,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
   isOpen = true,
   onToggle = () => {},
   projectContext,
+  width,
 }) => {
   // 使用 projectContext 来增强AI的上下文理解
   console.log('📝 AIChatPanel: 当前项目上下文:', projectContext);
@@ -1241,11 +1243,13 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
     }
   }, [models, selectedModelId]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="w-96 bg-gray-800 border-l border-gray-700 flex flex-col h-full">
-      {/* 顶部状态栏 */}
+    <div 
+      className={`w-full bg-gray-800 border-l border-gray-700 flex flex-col h-full ${
+        isOpen ? 'block' : 'hidden'
+      }`}
+    >
+      {/* 面板头部 */}
       <div className="p-4 border-b border-gray-700 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="relative">
@@ -1310,6 +1314,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
           <ChattingState 
             messages={messages}
             isAiThinking={isAiThinking}
+            setShowSettings={setShowSettings}
             messagesEndRef={messagesEndRef}
             onActionClick={handleActionClick}
             hasStreamingMessage={streamingMessageId !== null}
@@ -1652,17 +1657,25 @@ const ChattingState: React.FC<{
 }> = ({ messages, isAiThinking, setShowSettings, messagesEndRef, onActionClick, hasStreamingMessage }) => (
   <div className="flex-1 overflow-y-auto p-4 space-y-4">
     {messages.map((message) => (
-      <AIMessage key={message.id} message={message} onActionClick={onActionClick} />
+      <AIMessage 
+        key={message.id} 
+        message={message} 
+        onActionClick={onActionClick}
+        onToggleSettings={() => setShowSettings(true)}
+      />
     ))}
     
     {/* 只有在非流式模式且AI正在思考时才显示额外的思考指示器 */}
     {isAiThinking && !hasStreamingMessage && (
-      <AIMessage message={{ 
-        id: 0, 
-        type: 'ai' as const, 
-        content: '', 
-        timestamp: new Date() 
-      }} />
+      <AIMessage 
+        message={{ 
+          id: 0, 
+          type: 'ai' as const, 
+          content: '', 
+          timestamp: new Date() 
+        }}
+        onToggleSettings={() => setShowSettings(true)}
+      />
     )}
     
     <div ref={messagesEndRef} />

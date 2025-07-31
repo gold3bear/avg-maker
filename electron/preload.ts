@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('inkAPI', {
   createDirectory: (dirPath: string) => ipcRenderer.invoke('create-directory', dirPath),
   showInExplorer: (filePath: string) => ipcRenderer.invoke('show-in-explorer', filePath),
   copyFile: (src: string, dest: string) => ipcRenderer.invoke('copy-file', src, dest),
+  openExternalUrl: (url: string) => ipcRenderer.invoke('open-external-url', url),
+  triggerPreviewRefresh: () => ipcRenderer.invoke('trigger-preview-refresh'),
   
   // File watching
   watchFiles: (paths: string[]) => ipcRenderer.invoke('watch-files', paths),
