@@ -87,7 +87,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     { type: 'separator' },
     // 文件系统操作
     {
-      label: process.platform === 'darwin' ? '在 Finder 中显示' : '在资源管理器中显示',
+      label: (typeof window !== 'undefined' && window.navigator?.platform?.toLowerCase().includes('mac')) ? '在 Finder 中显示' : '在资源管理器中显示',
       icon: '👁️',
       onClick: () => {
         onShowInExplorer(targetPath);
