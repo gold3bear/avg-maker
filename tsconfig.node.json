@@ -2,8 +2,8 @@
   "compilerOptions": {
     "target": "ES2020",                // Node 14+ 均支持 ES2020 特性
     "module": "ESNext",              // ES modules for Node.js compatibility
-    "rootDir": "electron",             // 源文件根目录
-    "outDir": "dist/electron",         // 输出到 dist/electron
+    "rootDir": ".",                    // 源文件根目录
+    "outDir": "dist",                  // 输出目录
     "strict": true,                    // 打开所有严格检查
     "esModuleInterop": true,           // 兼容 import x from "y"
     "skipLibCheck": true,              // 跳过库类型检查，提升速度
@@ -15,7 +15,8 @@
     "moduleResolution": "node",            // ← 改为 node
   },
   "include": [
-    "electron/**/*.ts"                 // 只编译 electron 目录下的 TS
+    "electron/**/*.ts",                // electron 目录下的 TS
+    "server/**/*.ts"                   // server 目录下的 TS
   ],
   "exclude": [
     "node_modules",

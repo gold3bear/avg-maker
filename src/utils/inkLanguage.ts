@@ -434,10 +434,10 @@ export function setupInkThemes(monaco: typeof import('monaco-editor')) {
       'scrollbarSlider.background': '#C2C2C2',
       'scrollbarSlider.hoverBackground': '#A6A6A6',
       'scrollbarSlider.activeBackground': '#8C8C8C',
-      // 简化错误/警告样式 - 只保留波浪线
-      'editorError.background': '#FFFFFF00', // 透明背景
-      'editorWarning.background': '#FFFFFF00', // 透明背景
-      'editorInfo.background': '#FFFFFF00' // 透明背景
+      // 错误/警告样式 - 使用半透明背景和明显的波浪线
+      'editorError.background': '#E5140020', // 红色半透明背景
+      'editorWarning.background': '#FF8C0020', // 橙色半透明背景
+      'editorInfo.background': '#1BA1E220' // 蓝色半透明背景
     }
   });
 
@@ -477,10 +477,10 @@ export function setupInkThemes(monaco: typeof import('monaco-editor')) {
       'scrollbarSlider.background': '#424242',
       'scrollbarSlider.hoverBackground': '#4F4F4F',
       'scrollbarSlider.activeBackground': '#646464',
-      // 简化错误/警告样式 - 只保留波浪线
-      'editorError.background': '#1E1E1E00', // 透明背景
-      'editorWarning.background': '#1E1E1E00', // 透明背景
-      'editorInfo.background': '#1E1E1E00' // 透明背景
+      // 错误/警告样式 - 使用半透明背景和明显的波浪线
+      'editorError.background': '#F8514920', // 红色半透明背景
+      'editorWarning.background': '#D7BA7D20', // 黄色半透明背景
+      'editorInfo.background': '#75BEFF20' // 蓝色半透明背景
     }
   });
 
@@ -520,10 +520,10 @@ export function setupInkThemes(monaco: typeof import('monaco-editor')) {
       'scrollbarSlider.background': '#30363D',
       'scrollbarSlider.hoverBackground': '#424A53',
       'scrollbarSlider.activeBackground': '#545D68',
-      // 简化错误/警告样式 - 只保留波浪线
-      'editorError.background': '#0D111700', // 透明背景
-      'editorWarning.background': '#0D111700', // 透明背景
-      'editorInfo.background': '#0D111700' // 透明背景
+      // 错误/警告样式 - 使用半透明背景和明显的波浪线
+      'editorError.background': '#F8514920', // 红色半透明背景
+      'editorWarning.background': '#D2992220', // 黄色半透明背景
+      'editorInfo.background': '#58A6FF20' // 蓝色半透明背景
     }
   });
 
@@ -563,10 +563,10 @@ export function setupInkThemes(monaco: typeof import('monaco-editor')) {
       'scrollbarSlider.background': '#75715E',
       'scrollbarSlider.hoverBackground': '#90908A',
       'scrollbarSlider.activeBackground': '#A6A6A6',
-      // 简化错误/警告样式 - 只保留波浪线
-      'editorError.background': '#27282200', // 透明背景
-      'editorWarning.background': '#27282200', // 透明背景
-      'editorInfo.background': '#27282200' // 透明背景
+      // 错误/警告样式 - 使用半透明背景和明显的波浪线
+      'editorError.background': '#F9267220', // 红色半透明背景
+      'editorWarning.background': '#FD971F20', // 橙色半透明背景
+      'editorInfo.background': '#66D9EF20' // 蓝色半透明背景
     }
   });
 }

@@ -179,66 +179,122 @@ export function convertInklecateErrorsToMarkers(
   targetFile?: string
 ): Marker[] {
   const markers: Marker[] = [];
+  
+  // 预先扫描源文件中的INCLUDE语句
+  const includeMap = new Map<string, number>(); // filename -> line number
+  sourceLines.forEach((line, index) => {
+    const includeMatch = line.match(/^\s*INCLUDE\s+(.+?)(?:\s*$|(?:\s*\/\/.*$))/);
+    if (includeMatch) {
+      let includeFile = includeMatch[1].trim();
+      // 移除可能的引号
+      includeFile = includeFile.replace(/^["']|["']$/g, '');
+      // 只保留文件名，不保留路径
+      const fileName = includeFile.split('/').pop() || includeFile;
+      includeMap.set(fileName, index + 1); // 行号是1-indexed
+    }
+  });
 
   for (const error of errors) {
-    // 如果指定了目标文件，只处理该文件的错误
+    // 改进的文件匹配逻辑
     const targetFileName = targetFile?.split('/').pop() || '';
-    const shouldInclude = !targetFile || error.file.endsWith(targetFileName);
+    const errorFileName = error.file.split('/').pop() || error.file;
+    let shouldInclude = !targetFile || error.file.endsWith(targetFileName);
+    let mappedLineNumber = error.line;
+    let includeFileError = false;
+    
+    // 检查错误是否来自被包含的文件
+    if (targetFile && !shouldInclude && includeMap.has(errorFileName)) {
+      // 错误来自INCLUDE文件，将其映射到INCLUDE语句所在的行
+      shouldInclude = true;
+      mappedLineNumber = includeMap.get(errorFileName)!;
+      includeFileError = true;
+      console.log(`inklecateErrorParser: Mapping error from ${errorFileName} to INCLUDE line ${mappedLineNumber}`);
+    }
+    
+    // 对于某些全局错误（如重复的knot名称），在主文件中也显示
+    const isGlobalError = error.message.includes('Story already contains flow named') ||
+                         error.message.includes('Couldn\'t open include file');
+    
+    if (isGlobalError && targetFile && targetFileName.endsWith('.ink')) {
+      shouldInclude = true; // 在所有相关文件中显示全局错误
+    }
+    
     console.log('inklecateErrorParser: Processing error:', {
       errorFile: error.file,
+      errorFileName,
       targetFile,
       targetFileName,
       shouldInclude,
+      isGlobalError,
+      includeFileError,
+      originalLine: error.line,
+      mappedLine: mappedLineNumber,
       error: error.message
     });
     
-    if (targetFile && !shouldInclude) {
+    if (!shouldInclude) {
       continue;
     }
 
-    const lineNumber = error.line;
+    const lineNumber = mappedLineNumber; // 使用映射后的行号
     const lineContent = sourceLines[lineNumber - 1] || '';
     
     // 确定错误位置和范围
     let startColumn = error.column || 1;
     let endColumn = startColumn + 1;
+    
+    if (includeFileError) {
+      // 对于INCLUDE文件的错误，高亮整个INCLUDE语句
+      const includeMatch = lineContent.match(/^\s*(INCLUDE\s+.+?)(?:\s*$|(?:\s*\/\/.*$))/);
+      if (includeMatch) {
+        const includeStart = lineContent.indexOf(includeMatch[1]);
+        startColumn = includeStart + 1;
+        endColumn = includeStart + includeMatch[1].length + 1;
+      }
+    } else {
+      // 使用智能定位来精确定位错误
+      for (const hint of ERROR_LOCATION_HINTS) {
+        if (hint.pattern.test(error.message)) {
+          const location = hint.getLocation(error.message, lineContent);
+          if (location) {
+            startColumn = location.column;
+            endColumn = location.column + location.length;
+            break;
+          }
+        }
+      }
 
-    // 使用智能定位来精确定位错误
-    for (const hint of ERROR_LOCATION_HINTS) {
-      if (hint.pattern.test(error.message)) {
-        const location = hint.getLocation(error.message, lineContent);
+      // 如果没有智能定位，尝试通用定位策略
+      if (startColumn === 1 && endColumn === 2) {
+        const location = getGenericErrorLocation(error.message, lineContent);
         if (location) {
           startColumn = location.column;
           endColumn = location.column + location.length;
-          break;
+        } else {
+          // 默认高亮整行（去除前导空格）
+          const trimmedStart = lineContent.search(/\S/);
+          startColumn = Math.max(1, trimmedStart + 1);
+          endColumn = lineContent.length + 1;
         }
-      }
-    }
-
-    // 如果没有智能定位，尝试通用定位策略
-    if (startColumn === 1 && endColumn === 2) {
-      const location = getGenericErrorLocation(error.message, lineContent);
-      if (location) {
-        startColumn = location.column;
-        endColumn = location.column + location.length;
-      } else {
-        // 默认高亮整行（去除前导空格）
-        const trimmedStart = lineContent.search(/\S/);
-        startColumn = Math.max(1, trimmedStart + 1);
-        endColumn = lineContent.length + 1;
       }
     }
 
     // 确保列号在有效范围内
     startColumn = Math.max(1, Math.min(startColumn, lineContent.length + 1));
     endColumn = Math.max(startColumn + 1, Math.min(endColumn, lineContent.length + 1));
+    
+    // 为INCLUDE文件的错误构建更清晰的消息
+    let errorMessage = error.message;
+    if (includeFileError) {
+      errorMessage = `Error in included file '${errorFileName}' (line ${error.line}): ${error.message}\n[Click to open ${errorFileName}]`;
+    }
 
     markers.push({
       startLineNumber: lineNumber,
       startColumn,
       endLineNumber: lineNumber,
       endColumn,
-      message: `[inklecate] ${error.message}`,
+      message: `[inklecate] ${errorMessage}`,
       severity: error.type === 'ERROR' ? 8 : 4 // Monaco: MarkerSeverity.Error=8, Warning=4
     });
   }

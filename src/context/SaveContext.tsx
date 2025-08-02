@@ -15,8 +15,8 @@ interface SaveContextValue {
   // 文件状态
   fileStatuses: Record<string, FileStatus>;
   
-  // 检查是否有未保存的文件
-  hasUnsavedChanges: () => boolean;
+  // 检查是否有未保存的文件（全局）或特定文件
+  hasUnsavedChanges: (filePath?: string) => boolean;
   
   // 获取未保存的文件列表
   getUnsavedFiles: () => FileStatus[];
@@ -60,15 +60,36 @@ interface SaveProviderProps {
 export const SaveProvider: React.FC<SaveProviderProps> = ({ children }) => {
   const [fileStatuses, setFileStatuses] = useState<Record<string, FileStatus>>({});
 
-  const hasUnsavedChanges = useCallback(() => {
-    const result = Object.values(fileStatuses).some(status => status.isDirty);
-    console.log('🔍 SaveContext: hasUnsavedChanges() 被调用，结果:', result);
-    console.log('🔍 SaveContext: 当前文件状态统计:', {
-      总文件数: Object.keys(fileStatuses).length,
-      脏文件数: Object.values(fileStatuses).filter(s => s.isDirty).length,
-      脏文件列表: Object.values(fileStatuses).filter(s => s.isDirty).map(s => s.filePath)
-    });
-    return result;
+  const hasUnsavedChanges = useCallback((filePath?: string) => {
+    if (filePath) {
+      // 检查特定文件
+      const fileStatus = fileStatuses[filePath];
+      const result = fileStatus ? fileStatus.isDirty : false;
+      
+      console.log('🔍 SaveContext: hasUnsavedChanges() 检查特定文件:', filePath, '结果:', result);
+      if (fileStatus) {
+        console.log('🔍 SaveContext: 文件状态详情:', {
+          path: fileStatus.filePath,
+          isDirty: fileStatus.isDirty,
+          lastSaved: new Date(fileStatus.lastSaved).toISOString(),
+          contentChanged: fileStatus.currentContent !== fileStatus.originalContent
+        });
+      } else {
+        console.log('🔍 SaveContext: 文件状态不存在:', filePath);
+      }
+      
+      return result;
+    } else {
+      // 检查全局状态
+      const result = Object.values(fileStatuses).some(status => status.isDirty);
+      console.log('🔍 SaveContext: hasUnsavedChanges() 全局检查，结果:', result);
+      console.log('🔍 SaveContext: 当前文件状态统计:', {
+        总文件数: Object.keys(fileStatuses).length,
+        脏文件数: Object.values(fileStatuses).filter(s => s.isDirty).length,
+        脏文件列表: Object.values(fileStatuses).filter(s => s.isDirty).map(s => s.filePath)
+      });
+      return result;
+    }
   }, [fileStatuses]);
 
   const getUnsavedFiles = useCallback(() => {

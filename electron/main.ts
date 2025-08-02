@@ -8,6 +8,7 @@ import fsExtra from 'fs-extra';
 import chokidar from 'chokidar';
 import { fileURLToPath } from 'url';
 import os from 'node:os';
+import { PreviewServer } from '../server/previewServer.js';
 
 
 // 编译结果类型定义
@@ -52,9 +53,8 @@ const safeError = (message: string, ...args: any[]) => {
 };
 
 // 预览服务器相关变量
-let previewServer: any = null;
+let previewServer: PreviewServer | null = null;
 let currentPreviewFile: string | null = null;
-let lastRefreshTime: number = Date.now();
 
 // 全局异常处理，防止主进程崩溃
 process.on('uncaughtException', (error) => {
@@ -78,406 +78,33 @@ process.on('unhandledRejection', (reason, promise) => {
   // 不退出应用，只记录日志
 });
 
-// SSR预览页面生成函数
-async function generateSSRPreviewPage(): Promise<string> {
-  let storyJson = null;
-  let fileName = '未选择文件';
-  let errorMessage = null;
-  
-  if (currentPreviewFile) {
-    try {
-      console.log('🔄 SSR: Compiling story for preview:', currentPreviewFile);
-      fileName = basename(currentPreviewFile);
-      
-      // 读取文件内容
-      const source = fs.readFileSync(currentPreviewFile, 'utf8');
-      
-      // 编译故事
-      const inklecatePath = app.isPackaged
-        ? join(process.resourcesPath, 'bin/inklecate')
-        : join(__dirname, '../../bin/inklecate');
-      
-      const os = await import('os');
-      const originalDir = dirname(currentPreviewFile);
-      const tempRoot = join(os.tmpdir(), 'ssr-compilation');
-      const workingDir = join(tempRoot, 'project');
-      
-      if (!fs.existsSync(workingDir)) {
-        fs.mkdirSync(workingDir, { recursive: true });
-      }
-      
-      const inkFileName = basename(currentPreviewFile);
-      const tempInkPath = join(workingDir, inkFileName);
-      fs.writeFileSync(tempInkPath, source, 'utf-8');
-      
-      // 复制同目录下的其他ink文件
-      try {
-        const siblingFiles = fs.readdirSync(originalDir);
-        for (const file of siblingFiles) {
-          if (file.endsWith('.ink') && file !== inkFileName) {
-            const srcPath = join(originalDir, file);
-            const destPath = join(workingDir, file);
-            if (fs.existsSync(srcPath)) {
-              fs.copyFileSync(srcPath, destPath);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('SSR: Warning - could not copy sibling ink files:', err);
-      }
-      
-      const outputJsonName = inkFileName.replace('.ink', '.json');
-      const outputJsonPath = join(workingDir, outputJsonName);
-      
-      // 编译
-      const args = ['-o', outputJsonName, inkFileName];
-      
-      await new Promise<void>((resolve, reject) => {
-        const proc = spawn(inklecatePath, args, { cwd: workingDir });
-        let stderr = '';
-        
-        proc.stderr.on('data', chunk => { stderr += chunk.toString(); });
-        proc.on('close', (code) => {
-          if (code === 0 && fs.existsSync(outputJsonPath)) {
-            const compiledContent = fs.readFileSync(outputJsonPath, 'utf8');
-            storyJson = JSON.parse(compiledContent);
-            console.log('✅ SSR: Story compiled successfully');
-            
-            // 清理临时文件
-            try {
-              if (fs.existsSync(tempInkPath)) fs.unlinkSync(tempInkPath);
-              if (fs.existsSync(outputJsonPath)) fs.unlinkSync(outputJsonPath);
-            } catch (cleanupError) {
-              console.warn('SSR: Cleanup warning:', cleanupError);
-            }
-            
-            resolve();
-          } else {
-            errorMessage = stderr || 'Compilation failed';
-            console.error('❌ SSR: Compilation failed:', errorMessage);
-            reject(new Error(errorMessage));
-          }
-        });
-      });
-      
-    } catch (error) {
-      console.error('❌ SSR: Error compiling story:', error);
-      errorMessage = error instanceof Error ? error.message : String(error);
-    }
-  }
-  
-  // 生成HTML页面
-  return generatePreviewHTML(storyJson, fileName, errorMessage);
-}
 
-// 生成预览HTML
-function generatePreviewHTML(storyJson: any, fileName: string, errorMessage: string | null): string {
-  const storyData = storyJson ? JSON.stringify(storyJson) : 'null';
-  
-  return `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AVG Maker - ${fileName}</title>
-    <style>
-        * { box-sizing: border-box; }
-        body { 
-            margin: 0; padding: 0; background: #1e1e1e; color: white; 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            height: 100vh; overflow: hidden;
-        }
-        .app-container { height: 100vh; display: flex; flex-direction: column; }
-        .header {
-            background: #2d2d2d; padding: 12px 20px; border-bottom: 1px solid #444;
-            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
-        }
-        .title { margin: 0; font-size: 18px; font-weight: 600; }
-        .status { font-size: 12px; color: #888; background: #333; padding: 4px 8px; border-radius: 4px; }
-        .preview-container { flex: 1; padding: 20px; overflow-y: auto; background: #1e1e1e; }
-        .story-content { max-width: 800px; margin: 0 auto; line-height: 1.6; }
-        .story-text { margin-bottom: 16px; font-size: 16px; color: #f0f0f0; white-space: pre-wrap; }
-        .choices { margin-top: 24px; }
-        .choice-button {
-            display: block; width: 100%; padding: 12px 16px; margin-bottom: 8px;
-            background: #3d3d3d; border: 1px solid #555; color: white; border-radius: 6px;
-            cursor: pointer; text-align: left; font-size: 14px; transition: all 0.2s ease; font-family: inherit;
-        }
-        .choice-button:hover { background: #4d4d4d; border-color: #666; transform: translateY(-1px); }
-        .choice-button:active { transform: translateY(0); }
-        .error { color: #ff6b6b; text-align: center; margin-top: 60px; }
-        .refresh-hint { margin-top: 20px; font-size: 14px; color: #888; text-align: center; }
-        @media (max-width: 768px) {
-            .header { padding: 10px 15px; }
-            .preview-container { padding: 15px; }
-            .story-text { font-size: 15px; }
-            .choice-button { font-size: 13px; padding: 10px 14px; }
-        }
-    </style>
-</head>
-<body>
-    <div class="app-container">
-        <div class="header">
-            <h1 class="title">AVG Maker - 浏览器预览</h1>
-            <div class="status">${fileName}</div>
-        </div>
-        <div class="preview-container">
-            <div class="story-content" id="story-content">
-                ${errorMessage ? 
-                    `<div class="error">❌ 加载故事失败<br><small>${errorMessage}</small></div>` :
-                    '<div>正在加载故事...</div>'
-                }
-            </div>
-            <div class="refresh-hint">
-                <small>💡 在主应用中选择其他文件后，刷新此页面查看新内容</small>
-            </div>
-        </div>
-    </div>
-    
-    <script src="https://unpkg.com/inkjs@2.3.2/dist/ink.js"></script>
-    <script>
-        // 嵌入的故事数据
-        window.STORY_DATA = ${storyData};
-        window.FILE_NAME = '${fileName}';
-        window.ERROR_MESSAGE = ${errorMessage ? `'${errorMessage}'` : 'null'};
-        
-        const contentEl = document.getElementById('story-content');
-        let currentStory = null;
-        
-        // HTML转义
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-        
-        // 解析HTML内容（保留HTML标签，只转义不需要的字符）
-        function parseHtmlContent(text) {
-            // 基本的HTML标签白名单
-            const allowedTags = ['<b>', '</b>', '<i>', '</i>', '<em>', '</em>', '<strong>', '</strong>', 
-                               '<u>', '</u>', '<s>', '</s>', '<br>', '<br/>', '<br />', 
-                               '<p>', '</p>', '<div>', '</div>', '<span>', '</span>',
-                               '<h1>', '</h1>', '<h2>', '</h2>', '<h3>', '</h3>',
-                               '<ul>', '</ul>', '<ol>', '</ol>', '<li>', '</li>'];
-            
-            // 简单的HTML标签解析 - 保留允许的标签，转义其他内容
-            let result = text;
-            
-            // 首先保护已有的HTML标签
-            const tagProtection = {};
-            let tagCounter = 0;
-            
-            // 匹配所有HTML标签
-            result = result.replace(/<[^>]+>/g, (match) => {
-                const lowerMatch = match.toLowerCase();
-                // 检查是否是允许的标签
-                if (allowedTags.some(tag => lowerMatch === tag.toLowerCase() || 
-                    (lowerMatch.startsWith('<') && lowerMatch.includes(' ') && 
-                     allowedTags.some(allowedTag => lowerMatch.startsWith(allowedTag.toLowerCase().split('>')[0]))))) {
-                    const placeholder = \`__HTML_TAG_\${tagCounter}__\`;
-                    tagProtection[placeholder] = match;
-                    tagCounter++;
-                    return placeholder;
-                }
-                // 不允许的标签，转义显示
-                return match.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            });
-            
-            // 转义其他特殊字符，但保留换行
-            result = result.replace(/&/g, '&amp;')
-                          .replace(/"/g, '&quot;')
-                          .replace(/'/g, '&#39;');
-            
-            // 恢复保护的HTML标签
-            Object.keys(tagProtection).forEach(placeholder => {
-                result = result.replace(placeholder, tagProtection[placeholder]);
-            });
-            
-            // 将换行符转换为<br>标签
-            result = result.replace(/\\n/g, '<br>');
-            
-            return result;
-        }
-        
-        // 渲染故事内容
-        function renderStory(story) {
-            try {
-                const output = [];
-                while (story.canContinue) {
-                    const line = story.Continue();
-                    if (line && line.trim()) {
-                        output.push(line.trim());
-                    }
-                }
-                
-                let html = '';
-                
-                // 渲染文本 - 支持HTML标签
-                if (output.length > 0) {
-                    html += output.map(line => 
-                        \`<div class="story-text">\${parseHtmlContent(line)}</div>\`
-                    ).join('');
-                }
-                
-                // 渲染选择 - 选择文本也支持HTML
-                if (story.currentChoices && story.currentChoices.length > 0) {
-                    html += '<div class="choices">';
-                    story.currentChoices.forEach((choice, index) => {
-                        html += \`<button class="choice-button" onclick="makeChoice(\${index})">\${parseHtmlContent(choice.text)}</button>\`;
-                    });
-                    html += '</div>';
-                } else if (output.length === 0) {
-                    html = '<div class="story-text">📖 故事结束</div>';
-                }
-                
-                if (html === '') {
-                    html = '<div class="story-text">暂无内容</div>';
-                }
-                
-                contentEl.innerHTML = html;
-            } catch (error) {
-                console.error('Error rendering story:', error);
-                contentEl.innerHTML = \`<div class="error">渲染错误: \${error.message}</div>\`;
-            }
-        }
-        
-        // 处理选择
-        window.makeChoice = function(index) {
-            if (!currentStory || !currentStory.currentChoices || !currentStory.currentChoices[index]) {
-                console.error('Invalid choice:', index);
-                return;
-            }
-            
-            try {
-                currentStory.ChooseChoiceIndex(index);
-                renderStory(currentStory);
-            } catch (error) {
-                console.error('Error making choice:', error);
-                contentEl.innerHTML = \`<div class="error">选择处理错误: \${error.message}</div>\`;
-            }
-        };
-        
-        // 初始化游戏
-        function initGame() {
-            if (window.ERROR_MESSAGE) {
-                // 已经显示错误信息，无需处理
-                return;
-            }
-            
-            if (!window.STORY_DATA) {
-                contentEl.innerHTML = '<div class="error">没有故事数据可显示<br><small>请在主应用中选择一个.ink文件</small></div>';
-                return;
-            }
-            
-            try {
-                console.log('🎮 SSR: Starting story with embedded data');
-                currentStory = new window.inkjs.Story(window.STORY_DATA);
-                renderStory(currentStory);
-            } catch (error) {
-                console.error('Error initializing story:', error);
-                contentEl.innerHTML = \`<div class="error">故事初始化失败: \${error.message}</div>\`;
-            }
-        }
-        
-        // 自动刷新检测
-        let lastKnownRefreshTime = ${lastRefreshTime};
-        
-        function checkForRefresh() {
-            fetch('/api/refresh-time')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.refreshTime > lastKnownRefreshTime) {
-                        console.log('🔄 Content refresh detected, reloading page...');
-                        window.location.reload();
-                    }
-                })
-                .catch(error => {
-                    console.warn('Refresh check failed:', error);
-                });
-        }
-        
-        // 每2秒检查一次是否需要刷新
-        setInterval(checkForRefresh, 2000);
-        
-        // 等待inkjs加载完成后初始化
-        if (window.inkjs) {
-            initGame();
-        } else {
-            window.addEventListener('load', () => {
-                setTimeout(initGame, 100); // 确保inkjs完全加载
-            });
-        }
-    </script>
-</body>
-</html>`;
-}
 
 // 启动预览服务器
 async function startPreviewServer() {
-  const http = await import('http');
-  const url = await import('url');
+  const inklecatePath = app.isPackaged
+    ? join(process.resourcesPath, 'bin/inklecate')
+    : join(__dirname, '../../bin/inklecate');
   
-  console.log('🌐 Starting preview server on port 3001...');
-  
-  previewServer = http.createServer(async (req, res) => {
-    const reqUrl = url.parse(req.url || '', true);
-    const pathname = reqUrl.pathname;
-    
-    // 设置CORS头
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    
-    if (req.method === 'OPTIONS') {
-      res.writeHead(200);
-      res.end();
-      return;
+  previewServer = new PreviewServer({
+    port: 3001,
+    inklecatePath,
+    onError: (error) => {
+      console.error('Preview server error:', error);
+    },
+    onStart: () => {
+      console.log('Preview server started successfully');
     }
-    
-    // SSR预览页面
-    if (pathname === '/' || pathname === '/preview') {
-      try {
-        const htmlContent = await generateSSRPreviewPage();
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.writeHead(200);
-        res.end(htmlContent);
-        return;
-      } catch (error) {
-        console.error('❌ Preview server: Error generating SSR page:', error);
-        res.writeHead(500);
-        res.end(`Error generating preview: ${error instanceof Error ? error.message : String(error)}`);
-        return;
-      }
-    }
-    
-    // 刷新时间戳API
-    if (pathname === '/api/refresh-time') {
-      res.setHeader('Content-Type', 'application/json');
-      res.writeHead(200);
-      res.end(JSON.stringify({ refreshTime: lastRefreshTime }));
-      return;
-    }
-    
-    // 404处理
-    res.writeHead(404);
-    res.end('Not Found');
   });
   
-  previewServer.listen(3001, () => {
-    console.log('✅ Preview server started: http://localhost:3001/preview');
-  });
-  
-  previewServer.on('error', (error: any) => {
-    console.error('❌ Preview server error:', error);
-  });
+  await previewServer.start();
 }
 
 // 停止预览服务器
 function stopPreviewServer() {
   if (previewServer) {
-    previewServer.close();
+    previewServer.stop();
     previewServer = null;
-    console.log('🛑 Preview server stopped');
   }
 }
 
@@ -851,6 +478,9 @@ ipcMain.handle('update-ssr-preview-file', async (_, filePath: string) => {
   try {
     if (filePath && fs.existsSync(filePath)) {
       currentPreviewFile = filePath;
+      if (previewServer) {
+        previewServer.setCurrentFile(filePath);
+      }
       console.log('📋 Updated SSR preview file:', filePath);
       return true;
     } else {
@@ -987,8 +617,10 @@ ipcMain.handle('compile-ink', async (_, inkText: string, lintOnly: boolean, sour
   return new Promise((resolve, reject) => {
     const outputJsonName = inkFileName.replace('.ink', '.json');
     const outputJsonPath = join(workingDir, outputJsonName);
-    const args = ['-o', outputJsonName, inkFileName];
-    console.log('Main: Starting inklecate with args:', args, 'in dir:', workingDir);
+    const args = ['-c', '-o', outputJsonName, inkFileName]; // Add -c flag for countAllVisits support
+    console.log('🔧 Main: Starting inklecate with args:', args, 'in dir:', workingDir);
+    console.log('🔧 Main: inklecate path:', inklecatePath);
+    console.log('🔧 Main: Input file exists:', fs.existsSync(join(workingDir, inkFileName)));
 
     // 添加超时机制
     const timeout = setTimeout(() => {
@@ -1040,7 +672,18 @@ ipcMain.handle('compile-ink', async (_, inkText: string, lintOnly: boolean, sour
             // 读取生成的JSON文件（非lint模式）
             const jsonContent = fs.readFileSync(outputJsonPath, 'utf-8');
             const storyData = JSON.parse(jsonContent);
-            console.log('Main: Compilation successful, JSON file generated');
+            console.log('🔧 Main: Compilation successful, JSON file generated');
+            console.log('🔧 Main: JSON keys:', Object.keys(storyData));
+            console.log('🔧 Main: Has visitCounts?', 'visitCounts' in storyData);
+            console.log('🔧 Main: Root structure:', storyData.root ? Object.keys(storyData.root) : 'no root');
+            
+            // 检查是否有#f标记（visit count flags）
+            const jsonStr = JSON.stringify(storyData);
+            const countFlagsMatches = jsonStr.match(/"#f":\d+/g);
+            console.log('🔧 Main: Count flags (#f) found:', countFlagsMatches ? countFlagsMatches.length : 0);
+            if (countFlagsMatches) {
+              console.log('🔧 Main: Sample count flags:', countFlagsMatches.slice(0, 3));
+            }
 
             // 如果有警告信息，添加到结果中
             if (stderr.trim()) {
@@ -1323,9 +966,11 @@ ipcMain.handle('open-external-url', async (_, url: string) => {
 // 触发预览刷新
 ipcMain.handle('trigger-preview-refresh', async () => {
   try {
-    lastRefreshTime = Date.now();
-    console.log('🔄 Preview refresh triggered at:', lastRefreshTime);
-    return { success: true, refreshTime: lastRefreshTime };
+    if (previewServer) {
+      previewServer.triggerRefresh();
+      return { success: true, refreshTime: previewServer.getRefreshTime() };
+    }
+    return { success: false, error: 'Preview server not running' };
   } catch (error) {
     console.error('trigger-preview-refresh: Error:', error);
     return { success: false, error: error instanceof Error ? error.message : String(error) };

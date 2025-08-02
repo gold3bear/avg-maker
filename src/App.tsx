@@ -9,7 +9,6 @@ import { ActivityBar } from './components/ActivityBar';
 import { StatusBar } from './components/StatusBar';
 import { Editor } from './components/Editor';
 import { Preview, type PreviewRef } from './components/Preview';
-import { NodeGraph } from './components/NodeGraph';
 import { PluginHost } from './components/PluginHost';
 import AIChatPanel from './components/ai/AIChatPanel';
 import { CrashRecoveryModal } from './components/CrashRecoveryModal';
@@ -25,9 +24,9 @@ const AppContent: React.FC = () => {
   const { plugins, activeFile, selectFile, openProject, loadProjectPath, projectPath } = useContext(ProjectContext)!;
   const { hasUnsavedChanges, getUnsavedFiles, saveAllFiles } = useSave();
 
-  const [view, setView] = useState<'preview' | 'graph'>('preview');
   const [activeTab, setActiveTab] = useState<SidebarTab>('explorer');
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [previewFile, setPreviewFile] = useState<string | null>(null); // CompilePreviewer控制的预览文件
   
   // Preview组件的ref，用于TitleBar控制导航
   const previewRef = useRef<PreviewRef>(null);
@@ -161,7 +160,7 @@ const AppContent: React.FC = () => {
   const workspaceState = useWorkspaceState({
     projectPath,
     activeFile,
-    view,
+    view: 'preview',
     activeTab,
     sidebarVisible,
     sidebarWidth,
@@ -172,7 +171,7 @@ const AppContent: React.FC = () => {
   const latestStateRef = useRef({
     projectPath,
     activeFile,
-    view,
+    view: 'preview',
     activeTab,
     sidebarVisible,
     sidebarWidth,
@@ -184,7 +183,7 @@ const AppContent: React.FC = () => {
     latestStateRef.current = {
       projectPath,
       activeFile,
-      view,
+      view: 'preview',
       activeTab,
       sidebarVisible,
       sidebarWidth,
@@ -196,7 +195,7 @@ const AppContent: React.FC = () => {
       const appState = {
         projectPath,
         activeFile,
-        view,
+        view: 'preview',
         activeTab,
         sidebarVisible,
         sidebarWidth,
@@ -214,7 +213,7 @@ const AppContent: React.FC = () => {
     } else if (!isRecoveryCompleteRef.current) {
       console.log('⏸️ App: 恢复未完成，跳过立即保存:', { projectPath, activeFile });
     }
-  }, [projectPath, activeFile, view, activeTab, sidebarVisible, sidebarWidth, rightPanelWidth]);
+  }, [projectPath, activeFile, activeTab, sidebarVisible, sidebarWidth, rightPanelWidth]);
 
   // 更新独立预览窗口中的文件
   React.useEffect(() => {
@@ -312,7 +311,7 @@ const AppContent: React.FC = () => {
         const appState = {
           projectPath,
           activeFile,
-          view,
+          view: 'preview',
           activeTab,
           sidebarVisible,
           sidebarWidth,
@@ -364,7 +363,7 @@ const AppContent: React.FC = () => {
         console.log('🔧 App: 开发模式下跳过正常退出清理，保留恢复数据');
       }
     };
-  }, [activeFile, projectPath, view, activeTab, sidebarVisible]);
+  }, [activeFile, projectPath, activeTab, sidebarVisible]);
 
   // 使用useRef保存最新的函数引用，避免重复注册监听器
   const closeHandlerRef = useRef<() => Promise<void>>();
@@ -671,12 +670,12 @@ const AppContent: React.FC = () => {
             恢复projectPath: appState.projectPath,
             当前activeFile: activeFile,
             恢复activeFile: appState.activeFile,
-            当前view: view,
+            当前view: 'preview',
             恢复view: appState.view
           });
           
           // 恢复状态 - 确保所有状态都被恢复
-          if (appState.view) setView(appState.view);
+          // View is now handled internally by Preview component
           if (appState.activeTab) setActiveTab(appState.activeTab as SidebarTab);
           if (appState.sidebarVisible !== undefined) setSidebarVisible(appState.sidebarVisible);
           if (appState.sidebarWidth !== undefined) setSidebarWidth(appState.sidebarWidth);
@@ -728,7 +727,7 @@ const AppContent: React.FC = () => {
         // 恢复UI状态
         if (states.ui) {
           console.log('🎨 恢复UI状态:', states.ui);
-          setView(states.ui.view || 'preview');
+          // View is now handled internally by Preview component
           setActiveTab(states.ui.activeTab || 'explorer');
           setSidebarVisible(states.ui.sidebarVisible !== undefined ? states.ui.sidebarVisible : true);
           if (states.ui.sidebarWidth !== undefined) setSidebarWidth(states.ui.sidebarWidth);
@@ -807,7 +806,7 @@ const AppContent: React.FC = () => {
           console.log('🚨 App: 从紧急备份恢复状态:', appState);
           
           // 恢复状态
-          if (appState.view) setView(appState.view);
+          // View is now handled internally by Preview component
           if (appState.activeTab) setActiveTab(appState.activeTab as SidebarTab);
           if (appState.sidebarVisible !== undefined) setSidebarVisible(appState.sidebarVisible);
           
@@ -860,7 +859,7 @@ const AppContent: React.FC = () => {
         // 静默恢复基本状态（非崩溃情况）
         const appState = recovery.appState;
         console.log('🔄 静默恢复应用状态:', appState);
-        setView(appState.view || 'preview');
+        // View is now handled internally by Preview component
         setActiveTab((appState.activeTab as SidebarTab) || 'explorer');
         setSidebarVisible(appState.sidebarVisible !== undefined ? appState.sidebarVisible : true);
         if (appState.sidebarWidth !== undefined) setSidebarWidth(appState.sidebarWidth);
@@ -1005,7 +1004,7 @@ const AppContent: React.FC = () => {
     const interval = setInterval(saveState, 10000);
 
     return () => clearInterval(interval);
-  }, [projectPath, activeFile, view, activeTab, sidebarVisible, sidebarWidth, rightPanelWidth]);
+  }, [projectPath, activeFile, activeTab, sidebarVisible, sidebarWidth, rightPanelWidth]);
 
   // 处理崩溃恢复
   const handleCrashRestore = async (restoreFiles: boolean, restoreProject: boolean) => {
@@ -1022,7 +1021,7 @@ const AppContent: React.FC = () => {
         const appState = recoveryData.appState;
         console.log('🔄 恢复项目状态:', appState);
 
-        setView(appState.view || 'preview');
+        // View is now handled internally by Preview component
         setActiveTab((appState.activeTab as SidebarTab) || 'explorer');
         setSidebarVisible(appState.sidebarVisible !== undefined ? appState.sidebarVisible : true);
         if (appState.sidebarWidth !== undefined) setSidebarWidth(appState.sidebarWidth);
@@ -1119,6 +1118,13 @@ const AppContent: React.FC = () => {
     return `${fileName} - ${projectName}`;
   };
 
+  // 初始化previewFile：如果previewFile为null但activeFile存在，则使用activeFile作为初始预览文件
+  React.useEffect(() => {
+    if (!previewFile && activeFile) {
+      setPreviewFile(activeFile);
+    }
+  }, [activeFile, previewFile]);
+
   return (
     <div
       className="h-screen flex flex-col overflow-hidden"
@@ -1131,12 +1137,11 @@ const AppContent: React.FC = () => {
           onToggleSidebar={() => setSidebarVisible(!sidebarVisible)}
           sidebarVisible={sidebarVisible}
           activeFile={activeFile}
-          view={view}
-          onViewChange={setView}
           onOpenProject={openProject}
           onExportWeb={() => window.inkAPI.exportGame('web')}
           onExportDesktop={() => window.inkAPI.exportGame('desktop')}
           previewRef={previewRef}
+          onPreviewFileChange={setPreviewFile}
         />
       </div>
 
@@ -1231,10 +1236,8 @@ const AppContent: React.FC = () => {
                       params={pluginCtx.params}
                       onClose={() => setPluginCtx(null)}
                     />
-                  ) : view === 'graph' ? (
-                    <NodeGraph filePath={activeFile} />
                   ) : (
-                    <Preview ref={previewRef} filePath={activeFile} />
+                    <Preview ref={previewRef} filePath={previewFile || activeFile} />
                   )}
                 </div>
               </div>

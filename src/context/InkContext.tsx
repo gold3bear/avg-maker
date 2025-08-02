@@ -90,13 +90,15 @@ export const InkProvider: React.FC<React.PropsWithChildren<{}>> = ({ children })
       const errStr = String(stderr);
       console.log('InkContext: Compilation failed with stderr:', errStr);
       console.log('InkContext: sourceFilePath:', sourceFilePath);
+      console.log('InkContext: Error string length:', errStr.length);
+      console.log('InkContext: First 500 chars:', errStr.substring(0, 500));
       
       // 从JavaScript Error中提取inklecate错误文本
       let cleanErrorText = errStr;
       
       // 如果错误被包装在JavaScript Error中，提取所有inklecate错误行
       // 改进正则表达式以匹配更多错误格式
-      const inklecateErrorMatches = errStr.match(/(ERROR|WARNING):\s*'[^']+'\s*line\s*\d+:\s*.+/g);
+      const inklecateErrorMatches = errStr.match(/(ERROR|WARNING):\s*'[^']+'.*line\s*\d+:\s*.+/g);
       if (inklecateErrorMatches && inklecateErrorMatches.length > 0) {
         cleanErrorText = inklecateErrorMatches.join('\n');
         console.log('InkContext: Extracted inklecate errors:', cleanErrorText);

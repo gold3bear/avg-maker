@@ -7,10 +7,10 @@ import type { GameState } from '../../types/preview';
 
 interface StatusInfoProps {
   gameState: GameState;
-  filePath?: string;
+  // filePath不再需要，因为CompilePreviewer已经显示了入口文件信息
 }
 
-export const StatusInfo: React.FC<StatusInfoProps> = ({ gameState, filePath }) => {
+export const StatusInfo: React.FC<StatusInfoProps> = ({ gameState }) => {
   const { colors } = useTheme();
 
   // 调试信息
@@ -18,8 +18,7 @@ export const StatusInfo: React.FC<StatusInfoProps> = ({ gameState, filePath }) =
   console.log('gameState.currentKnot:', gameState.currentKnot);
   console.log('gameState:', gameState);
 
-  // 从文件路径中提取文件名
-  const fileName = filePath ? filePath.split('/').pop()?.replace('.ink', '') : '未知文件';
+  // 移除文件名显示，因为CompilePreviewer已经有入口文件显示
 
   return (
     <div 
@@ -30,20 +29,11 @@ export const StatusInfo: React.FC<StatusInfoProps> = ({ gameState, filePath }) =
         color: colors.textSecondary
       }}
     >
-      {/* 左侧：文件和节点信息 */}
+      {/* 左侧：当前节点信息 */}
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-1">
           <span className="text-xs font-medium" style={{ color: colors.textMuted }}>
-            文件:
-          </span>
-          <span className="font-medium" style={{ color: colors.textPrimary }}>
-            {fileName}
-          </span>
-        </div>
-
-        <div className="flex items-center space-x-1">
-          <span className="text-xs font-medium" style={{ color: colors.textMuted }}>
-            节点:
+            当前节点:
           </span>
           <span 
             className="px-2 py-1 rounded text-xs font-mono"

@@ -142,6 +142,58 @@ window.__DEV_TESTING__.recovery.showAllStorageData()
 - **Next-Gen**: New SRP-compliant architecture implemented but not active
 - **Migration**: Available for future major version updates
 
+## Project Structure & Best Practices
+
+### Entry File Organization
+AVG Maker follows a **root-level entry file** pattern for optimal project organization:
+
+#### **📁 Recommended Project Structure**
+```
+my-avg-project/
+├── main.ink          # 🎯 Primary game entry point
+├── demo.ink          # 🎯 Demo or test entry point  
+├── chapter1.ink      # 🎯 Standalone chapter entry
+├── modules/          # 📂 Shared modules and utilities
+│   ├── characters.ink
+│   ├── inventory.ink
+│   └── dialogue.ink
+├── assets/           # 📂 Images, sounds, etc.
+└── plugins/          # 📂 Custom H5 plugins
+```
+
+#### **🎯 Entry File Benefits**
+- **Multi-Game Support**: One project can contain multiple games or chapters
+- **Selective Compilation**: Compile only what you need via CompilePreviewer
+- **Clean Architecture**: Main logic in root, utilities in subdirectories
+- **Easy Navigation**: Entry files visible in TitleBar's CompilePreviewer dropdown
+- **Flexible Publishing**: Export different entry points as separate games
+
+#### **⚙️ CompilePreviewer Integration**
+The TitleBar's CompilePreviewer automatically detects root-level `.ink` files as entry points:
+- **Platform Selection**: Choose between browser preview or editor preview
+- **Entry File Selection**: Dropdown shows only root-level `.ink` files
+- **One-Click Compilation**: Play button compiles and launches selected entry
+- **Live Refresh**: Refresh button recompiles and updates preview
+
+#### **💡 Usage Examples**
+```ink
+// main.ink - Primary game entry
+INCLUDE modules/characters.ink
+INCLUDE modules/inventory.ink
+
+-> start
+
+=== start ===
+Welcome to my AVG game!
+-> chapter1
+
+// demo.ink - Standalone demo entry  
+-> demo_start
+
+=== demo_start ===
+This is a demo of the game mechanics.
+```
+
 ## Important Implementation Notes
 
 ### File Paths
@@ -177,5 +229,7 @@ When working on this codebase:
 3. Maintain compatibility with the Ink scripting language
 4. Ensure cross-platform compatibility (Windows/macOS/Linux)
 5. Test both normal operation and crash recovery scenarios
+6. **Respect the root-level entry file pattern**: Only modify entry file detection logic if absolutely necessary
+7. **Test CompilePreviewer functionality**: Ensure entry file selection works correctly for various project structures
 
 The project emphasizes reliability, user experience, and developer productivity, making it the premier tool for AI-assisted interactive fiction creation.

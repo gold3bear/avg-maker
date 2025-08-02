@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced InkJS API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee1e9; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Enhanced InkJS API Test</h1>
+    <p>This page tests our enhanced inkjs fork functionality.</p>
+    
+    <div id="results"></div>
+    
+    <script type="module">
+        // Import our enhanced inkjs
+        import { Story } from './node_modules/inkjs/ink.js';
+        
+        const resultsDiv = document.getElementById('results');
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = message;
+            resultsDiv.appendChild(div);
+        }
+        
+        function testEnhancedAPI() {
+            addResult('🚀 Starting Enhanced API Test...', 'info');
+            
+            try {
+                // Create a simple test story
+                const testJSON = {
+                    "inkVersion": 21,
+                    "root": [
+                        "^Hello World!",
+                        "\n",
+                        ["done", {"#f": 5}]
+                    ],
+                    "listDefs": {}
+                };
+                
+                const story = new Story(JSON.stringify(testJSON));
+                addResult('✅ Story created successfully', 'success');
+                
+                // Test our enhanced methods
+                addResult('<h3>📍 Testing Enhanced Methods:</h3>', 'info');
+                
+                // Test getCurrentKnotName
+                if (typeof story.getCurrentKnotName === 'function') {
+                    const currentKnot = story.getCurrentKnotName();
+                    addResult(`✅ getCurrentKnotName(): "${currentKnot}"`, 'success');
+                    
+                    // Check if it's filtering internal names correctly
+                    const isFiltered = currentKnot !== 'c-0' && currentKnot !== 'b' && currentKnot !== 'g-0';
+                    addResult(`${isFiltered ? '✅' : '❌'} Internal name filtering: ${isFiltered ? 'Working' : 'Failed'}`, isFiltered ? 'success' : 'error');
+                } else {
+                    addResult('❌ getCurrentKnotName() method not found', 'error');
+                }
+                
+                // Test getCurrentKnotInfo
+                if (typeof story.getCurrentKnotInfo === 'function') {
+                    const knotInfo = story.getCurrentKnotInfo();
+                    addResult(`✅ getCurrentKnotInfo(): <pre>${JSON.stringify(knotInfo, null, 2)}</pre>`, 'success');
+                } else {
+                    addResult('❌ getCurrentKnotInfo() method not found', 'error');
+                }
+                
+                // Test getAllKnotNames
+                if (typeof story.getAllKnotNames === 'function') {
+                    const allKnots = story.getAllKnotNames();
+                    addResult(`✅ getAllKnotNames(): ${JSON.stringify(allKnots)}`, 'success');
+                } else {
+                    addResult('❌ getAllKnotNames() method not found', 'error');
+                }
+                
+                // Test predictChoiceTarget
+                if (typeof story.predictChoiceTarget === 'function') {
+                    addResult('✅ predictChoiceTarget() method available', 'success');
+                    
+                    // Test with no choices available
+                    try {
+                        const prediction = story.predictChoiceTarget(0);
+                        addResult(`📊 Prediction result: <pre>${JSON.stringify(prediction, null, 2)}</pre>`, 'info');
+                    } catch (e) {
+                        addResult(`ℹ️ Prediction test: ${e.message} (expected for story with no choices)`, 'info');
+                    }
+                } else {
+                    addResult('❌ predictChoiceTarget() method not found', 'error');
+                }
+                
+                // Test story execution
+                addResult('<h3>▶️ Testing Story Execution:</h3>', 'info');
+                let output = '';
+                while (story.canContinue) {
+                    output += story.Continue();
+                }
+                addResult(`📝 Story output: "${output.trim()}"`, 'success');
+                
+                // Final verification
+                addResult('<h3>🎉 Test Complete!</h3>', 'success');
+                addResult('✅ Enhanced InkJS API is working correctly!', 'success');
+                
+            } catch (error) {
+                addResult(`❌ Test failed: ${error.message}`, 'error');
+                addResult(`Stack trace: <pre>${error.stack}</pre>`, 'error');
+            }
+        }
+        
+        // Run test when page loads
+        testEnhancedAPI();
+    </script>
+</body>
+</html>

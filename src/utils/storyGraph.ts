@@ -11,8 +11,27 @@ export interface GraphLink { source: string; target: string; label: string; }
 export function buildStoryGraph(
   raw: any
 ): { nodes: GraphNode[]; links: GraphLink[] } {
-  // inklecate 输出的原始结构中，root[2] 存储所有 knot 的内容
-  const named = raw.root[2] as Record<string, any[]>;
+  // 检查raw和raw.root是否存在
+  if (!raw || !raw.root || !Array.isArray(raw.root)) {
+    console.warn('buildStoryGraph: Invalid ink JSON structure');
+    return { nodes: [], links: [] };
+  }
+  
+  // inklecate 21版本：named content在root数组的最后一个元素中
+  const lastRootElement = raw.root[raw.root.length - 1];
+  if (!lastRootElement || typeof lastRootElement !== 'object') {
+    console.warn('buildStoryGraph: No named content found in root');
+    return { nodes: [], links: [] };
+  }
+  
+  // 过滤掉特殊属性（如#f, #n等）和 global decl，获取实际的knot
+  const named: Record<string, any[]> = {};
+  Object.entries(lastRootElement).forEach(([key, value]) => {
+    if (!key.startsWith('#') && key !== 'global decl' && Array.isArray(value)) {
+      named[key] = value;
+    }
+  });
+  
   const nodes: GraphNode[] = Object.keys(named).map((id) => ({ id }));
   const links: GraphLink[] = [];
 
@@ -21,6 +40,12 @@ export function buildStoryGraph(
     let lastText = '';
 
     function recurse(arr: any[], inChoice: boolean) {
+      // 安全检查：确保 arr 是数组
+      if (!Array.isArray(arr)) {
+        console.warn(`buildStoryGraph: expected array but got ${typeof arr} for knot "${from}"`);
+        return;
+      }
+      
       arr.forEach((entry) => {
         if (Array.isArray(entry)) {
           recurse(entry, inChoice);
@@ -42,7 +67,8 @@ export function buildStoryGraph(
           // 2. narrative divert 跳转
           } else if (typeof entry['->'] === 'string') {
             const to = entry['->'];
-            if (named[to]) {
+            // 确保目标存在且不是 global decl
+            if (named[to] && to !== 'global decl') {
               const label = lastText || '…';
               if (inChoice) {
                 links.push({ source: from, target: to, label });
@@ -61,7 +87,12 @@ export function buildStoryGraph(
       });
     }
 
-    recurse(content, false);
+    // 安全检查：确保 content 是数组再调用 recurse
+    if (Array.isArray(content)) {
+      recurse(content, false);
+    } else {
+      console.warn(`buildStoryGraph: content is not an array for knot "${from}", type: ${typeof content}`);
+    }
   });
 
   return { nodes, links };

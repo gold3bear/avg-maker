@@ -1,17 +1,19 @@
+VAR test_var = 0
+
+-> start
+
 === start ===
-This is the starting knot.
+~ test_var++
+You are at the start.
+* [Go to first] -> first
 
-* [Go to middle] -> middle
-* [Go to end] -> end
+=== first ===
+~ test_var++
+You are at first section.
+* [Back to start] -> start
+* [Go to second] -> second
 
-=== middle ===
-This is the middle knot.
-
-* [Go back to start] -> start
-* [Go to end] -> end
-
-=== end ===
-This is the end knot.
-
-* [Go back to start] -> start
-* [Go back to middle] -> middle
+=== second ===
+~ test_var++
+You are at second section.
+-> END
