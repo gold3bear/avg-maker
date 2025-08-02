@@ -6,12 +6,12 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
+for
 node_modules
 dist
 dist-ssr
 *.local
-
+out
 # AI Configuration (contains API keys and personal settings)
 .ai-config/ai-models.json
 

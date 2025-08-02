@@ -1,0 +1,3 @@
+[submodule "inkjs-fork"]
+    path = inkjs-fork
+    url = https://github.com/gold3bear/inkjs.git
